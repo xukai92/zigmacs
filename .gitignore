@@ -70,6 +70,9 @@
 .zig-cache/
 zig-out/
 
+# Oracle builds (fidelity testing reference binaries)
+/oracle/
+
 # IDE
 .vscode/
 .idea/
