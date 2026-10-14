@@ -1,0 +1,77 @@
+# Build artifacts
+*.o
+*.a
+*.so
+*.so.*
+*.dylib
+*.exe
+
+# Emacs build outputs
+/src/emacs
+/src/emacs-*
+/src/temacs
+/src/bootstrap-emacs
+*.pdmp
+/lib-src/make-docfile
+/lib-src/make-fingerprint
+/lib-src/blessmail
+/lib-src/ctags
+/lib-src/ebrowse
+/lib-src/emacsclient
+/lib-src/etags
+/lib-src/hexl
+/lib-src/movemail
+/lib-src/profile
+/lib-src/rcs2log
+/lib-src/update-game-score
+
+# Configure-generated files
+/config.status
+/config.cache
+/config.log
+/config.h
+/src/config.h
+/lib/config.h
+/autom4te.cache/
+/Makefile
+/lib/Makefile
+/lib-src/Makefile
+/src/Makefile
+/doc/*/Makefile
+/etc/Makefile
+/lisp/Makefile
+/lwlib/Makefile
+/oldXMenu/Makefile
+/test/Makefile
+
+# Emacs-specific generated files
+/src/buildobj.h
+/src/globals.h
+/lisp/loaddefs.el
+/lisp/ldefs-boot.el
+/lisp/cus-load.el
+/lisp/finder-inf.el
+/lisp/subdirs.el
+/info/
+/doc/*/*.info
+/doc/*/*.html
+/doc/*/*.pdf
+/doc/*/*.ps
+/doc/*/*.dvi
+
+# Lock and temp files
+.#*
+\#*\#
+*~
+*.orig
+*.rej
+
+# Zig build cache
+.zig-cache/
+zig-out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
