@@ -29,19 +29,21 @@ jobs:
           pkg-config \
           libncurses-dev
 
-    - name: Install Zig 0.17.0
+    - name: Install Zig 0.13.0
       run: |
-        # Download Zig 0.17.0 for Linux x86_64
-        wget -q https://ziglang.org/download/0.17.0/zig-linux-x86_64-0.17.0.tar.xz
+        # NOTE: Using Zig 0.13.0 because 0.17.0 (used in local dev) isn't publicly
+        # available for download yet. Local builds use 0.17.0 successfully.
+        # Download Zig 0.13.0 for Linux x86_64
+        wget -q https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz
 
         # Verify checksum (SHA256 from https://ziglang.org/download/)
-        echo "c6cbe4dcb49a6b22c49a3a7bc016c6be99c1cd05b8ffb062bf88cd57ec9fcebe  zig-linux-x86_64-0.17.0.tar.xz" | sha256sum --check
+        echo "d45312e61ebcc48032b77bc4cf7fd6915c11fa16e4aad116b66c9468211230ea  zig-linux-x86_64-0.13.0.tar.xz" | sha256sum --check
 
         # Extract
-        tar -xf zig-linux-x86_64-0.17.0.tar.xz
+        tar -xf zig-linux-x86_64-0.13.0.tar.xz
 
         # Add to PATH
-        echo "$PWD/zig-linux-x86_64-0.17.0" >> $GITHUB_PATH
+        echo "$PWD/zig-linux-x86_64-0.13.0" >> $GITHUB_PATH
 
     - name: Verify Zig installation
       run: |
