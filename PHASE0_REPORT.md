@@ -24,8 +24,7 @@ GNU Emacs 30.1 builds **cleanly with Zig 0.13.0 and 0.17.0 with ZERO source patc
 
 ### Toolchain
 
-- **Primary:** Zig 0.17.0 (local development, not yet publicly released)
-- **CI Fallback:** Zig 0.13.0 (latest stable on ziglang.org)
+- **Primary:** Zig 0.17.0 (public release, used in both local dev and CI)
 - **Oracle Compiler:** GCC (system default, for fidelity baseline)
 
 ### Configure Flags (Exact Match to Ground-Truth Emacs)
@@ -123,19 +122,19 @@ Skip:  233
 
 **Core functionality tests** (elisp evaluation, I/O, treesit, etc.) **all pass**. Failures are in external-tool-wrapping edge cases.
 
-### Zig 0.13.0 (CI, ubuntu-latest)
+### Zig 0.17.0 (CI, ubuntu-latest)
 
 ```
 Files: 519
 Tests: 7749 total
 Pass:  7474
-Fail:  5 unexpected (eglot-tests.log only)
+Fail:  5 unexpected (eglot-tests.log only - allowlisted)
 Skip:  270
 ```
 
-**Status:** ✅ **BEST RESULT**. Ubuntu's unified GLIBC avoids the CentOS library mixing issue. The 5 eglot failures are **upstream flakes** (LSP server timing, non-deterministic).
+**Status:** ✅ **GATE PASSING**. The 5 eglot failures are **allowlisted** (require external LSP servers: rust-analyzer, tsserver, clangd not installed in CI). Gate script enforces that only allowlisted environmental failures pass CI.
 
-**CI Run:** [https://github.com/xukai92/zigmacs/actions/runs/38640270571](https://github.com/xukai92/zigmacs/actions/runs/38640270571)
+**CI Run:** [https://github.com/xukai92/zigmacs/actions/runs/38643055029](https://github.com/xukai92/zigmacs/actions/runs/38643055029)
 
 ---
 
@@ -175,17 +174,18 @@ Interactive smoke tests (file I/O, tree-sitter parsing, gnutls connections) all 
 ### Workflow (`.github/workflows/ci.yml`)
 
 1. **Install deps:** `apt-get install` build tools and libraries
-2. **Download Zig 0.13.0:** Verified with SHA256 `d45312e61ebcc48032b77bc4cf7fd6915c11fa16e4aad116b66c9468211230ea`
+2. **Download Zig 0.17.0:** Verified with SHA256 `1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026`
 3. **Configure:** `CC="zig cc" ./configure ...` (flags as above)
 4. **Build:** `make -j$(nproc) src`
-5. **Test:** `make check` in `test/` directory
-6. **Artifacts:** Upload all `*.log` files for inspection
+5. **Test:** `make check` in `test/` directory (collects results without failing step)
+6. **Gate:** `scripts/ci-gate.py` examines test logs, fails CI on non-allowlisted failures
+7. **Artifacts:** Upload all `*.log` files for inspection
 
 ### Run Status
 
-- ✅ Latest run: [#38640270571](https://github.com/xukai92/zigmacs/actions/runs/38640270571)
-- ✅ Duration: 3m13s
-- ✅ All steps green
+- ✅ Latest run: [#38643055029](https://github.com/xukai92/zigmacs/actions/runs/38643055029)
+- ✅ Duration: 3m24s
+- ✅ All steps green (gate passed with 5 allowlisted eglot failures)
 
 ### Artifacts
 
@@ -195,19 +195,13 @@ Test logs uploaded to Actions artifacts (downloadable for 90 days).
 
 ## Zig Version Strategy
 
-### Why Two Versions?
+### Zig 0.17.0
 
-- **0.17.0 (Dev):** Installed locally at `/home/kai/.local/zig/0.17.0/zig`, verified working. **Not yet available on ziglang.org** (404 on tarball download despite appearing in version listing HTML).
-- **0.13.0 (CI):** Latest stable release with public tarball. Proven to build Emacs identically.
+- **URL:** `https://ziglang.org/download/0.17.0/zig-x86_64-linux-0.17.0.tar.xz`
+- **SHA256:** `1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026`
+- **Note:** Zig 0.17.0 uses arch-first naming (`zig-x86_64-linux-VER`) not the old `zig-linux-x86_64-VER` format
 
-### Compatibility
-
-Both versions produce **functionally equivalent** binaries:
-- Same configure probes pass
-- Same warnings emitted
-- Same test pass/fail patterns (modulo environmental issues)
-
-**Recommendation:** Pin to **0.13.0** for reproducibility until 0.17.0 official release. If future Zig versions break the build, fall back per `ARCH.md` (0.16.0 → 0.15.2 → report).
+Zig 0.17.0 is publicly available and is now the pinned toolchain for both local development and CI. Earlier CI used 0.13.0 due to incorrect URL format assumptions (the old naming scheme 404'd, leading to false belief that 0.17.0 wasn't released).
 
 ---
 
@@ -225,10 +219,9 @@ Both versions produce **functionally equivalent** binaries:
 
 | Issue | Impact | Mitigation | Permanent Fix |
 |-------|--------|-----------|---------------|
-| Zig 0.17.0 not downloadable | CI can't use exact dev version | Use 0.13.0 in CI | Wait for 0.17.0 release or upload binary to GH Releases |
-| GLIBC 2.34 vs brew libstdc++ | CentOS test failures (unzip, bwrap) | `LD_LIBRARY_PATH=/usr/lib64:...` | Static link libstdc++ or use Zig libc (`-target native-native-musl`) |
+| GLIBC 2.34 vs brew libstdc++ | CentOS test failures (unzip, bwrap) | `LD_LIBRARY_PATH=/usr/lib64:...` | Static link libstdc++ or use rpath (see Defect 3) |
 | 4 build warnings | Noise in logs | Document as "tracked, not fixed" | Patch in Phase N if Zig makes them hard errors |
-| 5 eglot test flakes | CI occasionally red | `continue-on-error: true` for tests | Upstream fix or skip eglot tests |
+| 5 eglot test failures | Tests need LSP servers | Allowlisted in CI gate (`scripts/ci-gate.py`) | Install LSP servers in CI or skip tests |
 
 None are **blockers**. The binary is correct; issues are environmental polish.
 

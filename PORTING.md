@@ -9,10 +9,10 @@ This document tracks all patches, workarounds, and findings from porting GNU Ema
 ### Build Environment
 
 - **Base:** GNU Emacs 30.1 (official tarball, commit `8ac894e`)
-- **Toolchain:** Zig 0.17.0 at `/home/kai/.local/zig/0.17.0/zig`
-- **Compiler:** `CC="/home/kai/.local/zig/0.17.0/zig cc"`
-- **Platform:** CentOS Stream 9 (GLIBC 2.34), x86_64 Linux
-- **Dependencies:** Via linuxbrew (gnutls 3.8.12, libxml2 2.13.8, tree-sitter 0.25.6, ncurses 6.6)
+- **Toolchain:** Zig 0.17.0 (public release, pinned in CI)
+- **Compiler:** `CC="zig cc"`
+- **Platform:** CentOS Stream 9 (GLIBC 2.34), x86_64 Linux (local); ubuntu-latest (CI)
+- **Dependencies:** Via linuxbrew (gnutls 3.8.12, libxml2 2.13.8, tree-sitter 0.25.6, ncurses 6.6) on local; via apt on CI
 
 ### Configure Flags (Ground-Truth Match)
 
