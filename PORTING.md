@@ -74,22 +74,37 @@ The following warnings are emitted by `zig cc` but do not prevent a successful b
 
 These warnings reflect `zig cc`'s stricter diagnostics compared to GCC. They are **tracked but not fixed** in Phase 0, as the goal is a byte-compatible build. If any become errors in future Zig versions, they will be addressed minimally.
 
-### Runtime Environment Fix
+### Runtime Environment Fix (RESOLVED - Defect 3)
 
-**Issue:** The linked `temacs` binary transitively depends on `libstdc++.so.6` (via `libtree-sitter.so`). Linuxbrew's `libstdc++` (from gcc 14.2.0) requires GLIBC 2.36+, but CentOS Stream 9 ships GLIBC 2.34, causing:
+**Issue:** The linked `emacs` binary transitively depends on `libstdc++.so.6` (via `libtree-sitter.so`). Linuxbrew's `libstdc++` (from gcc 14.2.0) requires GLIBC 2.36+, but CentOS Stream 9 ships GLIBC 2.34. Previous workaround used `LD_LIBRARY_PATH=/usr/lib64:...` which:
+- Polluted shell environment
+- Broke child processes (gh, unzip, bwrap in tests)
+- Propagated to all subprocesses
 
+**Solution (IMPLEMENTED):** Use **rpath** in LDFLAGS at configure time:
+
+```bash
+export LDFLAGS="-L/home/linuxbrew/.linuxbrew/opt/ncurses/lib"
+export LDFLAGS="$LDFLAGS -Wl,-rpath,/usr/lib64"
+export LDFLAGS="$LDFLAGS -Wl,-rpath,/home/linuxbrew/.linuxbrew/lib"
 ```
-./temacs: /lib64/libc.so.6: version `GLIBC_2.38' not found (required by /home/linuxbrew/.linuxbrew/opt/gcc/lib/gcc/current/libstdc++.so.6)
+
+Rpath embeds library search paths in the binary and does NOT propagate to child processes.
+
+**Verification:**
+```bash
+# Check rpath
+readelf -d src/emacs | grep RUNPATH
+
+# Run without any env pollution
+unset LD_LIBRARY_PATH
+src/emacs --version  # works!
 ```
 
-**Solution:** Prepend `/usr/lib64` to `LD_LIBRARY_PATH` at build and runtime. The dynamic linker prioritizes the system `libstdc++.so.6.0.29` (GLIBC 2.34-compatible) over brew's version.
+**Launcher:** `scripts/zigmacs` provides clean invocation
+**Build script:** `scripts/build-with-rpath.sh` documents the process
 
-**Status:** `WORKAROUND`. This is an environment-level fix, not a source patch. Future options:
-- Statically link libstdc++ (`-static-libstdc++` flag)
-- Use Zig's libc instead of glibc (requires porting or `-target` changes)
-- Build tree-sitter without C++ dependencies (investigate)
-
-This workaround is **documented** and **scripted** in build tooling. It does not affect semantic correctness.
+**Status:** `RESOLVED`. No environment variables needed, child processes run cleanly.
 
 ### Build Artifacts
 

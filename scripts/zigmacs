@@ -1,0 +1,3 @@
+#!/bin/bash
+# Zigmacs launcher - rpath-enabled emacs binary needs no env pollution
+exec "$(dirname "$0")/../src/emacs" "$@"
