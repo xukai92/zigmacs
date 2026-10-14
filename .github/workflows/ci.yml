@@ -29,21 +29,20 @@ jobs:
           pkg-config \
           libncurses-dev
 
-    - name: Install Zig 0.13.0
+    - name: Install Zig 0.17.0
       run: |
-        # NOTE: Using Zig 0.13.0 because 0.17.0 (used in local dev) isn't publicly
-        # available for download yet. Local builds use 0.17.0 successfully.
-        # Download Zig 0.13.0 for Linux x86_64
-        wget -q https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz
+        # Download Zig 0.17.0 for Linux x86_64
+        # NOTE: Zig 0.17.0 uses arch-first naming (zig-x86_64-linux-VER)
+        wget -q https://ziglang.org/download/0.17.0/zig-x86_64-linux-0.17.0.tar.xz
 
         # Verify checksum (SHA256 from https://ziglang.org/download/)
-        echo "d45312e61ebcc48032b77bc4cf7fd6915c11fa16e4aad116b66c9468211230ea  zig-linux-x86_64-0.13.0.tar.xz" | sha256sum --check
+        echo "1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026  zig-x86_64-linux-0.17.0.tar.xz" | sha256sum --check
 
         # Extract
-        tar -xf zig-linux-x86_64-0.13.0.tar.xz
+        tar -xf zig-x86_64-linux-0.17.0.tar.xz
 
         # Add to PATH
-        echo "$PWD/zig-linux-x86_64-0.13.0" >> $GITHUB_PATH
+        echo "$PWD/zig-x86_64-linux-0.17.0" >> $GITHUB_PATH
 
     - name: Verify Zig installation
       run: |
@@ -76,10 +75,9 @@ jobs:
         src/emacs --version
 
     - name: Run test suite
-      continue-on-error: true
       run: |
         cd test
-        make check -j$(nproc) || true
+        make check -j$(nproc)
 
     - name: Upload test logs
       if: always()
@@ -91,10 +89,7 @@ jobs:
           test/*.log
         if-no-files-found: warn
 
-    - name: Test summary
+    - name: CI test gate
       if: always()
       run: |
-        if [ -d test ]; then
-          echo "=== Test Summary ==="
-          grep -r "SUMMARY OF TEST RESULTS" test/ || echo "No summary found"
-        fi
+        python3 scripts/ci-gate.py
