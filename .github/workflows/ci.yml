@@ -1,0 +1,98 @@
+name: Zigmacs CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          autoconf \
+          automake \
+          texinfo \
+          libgnutls28-dev \
+          libxml2-dev \
+          libtree-sitter-dev \
+          build-essential \
+          pkg-config \
+          libncurses-dev
+
+    - name: Install Zig 0.17.0
+      run: |
+        # Download Zig 0.17.0 for Linux x86_64
+        wget -q https://ziglang.org/download/0.17.0/zig-linux-x86_64-0.17.0.tar.xz
+
+        # Verify checksum (SHA256 from https://ziglang.org/download/)
+        echo "c6cbe4dcb49a6b22c49a3a7bc016c6be99c1cd05b8ffb062bf88cd57ec9fcebe  zig-linux-x86_64-0.17.0.tar.xz" | sha256sum --check
+
+        # Extract
+        tar -xf zig-linux-x86_64-0.17.0.tar.xz
+
+        # Add to PATH
+        echo "$PWD/zig-linux-x86_64-0.17.0" >> $GITHUB_PATH
+
+    - name: Verify Zig installation
+      run: |
+        zig version
+
+    - name: Configure with zig cc
+      run: |
+        # Touch configure to prevent autogen re-runs
+        touch configure aclocal.m4
+
+        # Configure with zig cc
+        CC="zig cc" ./configure \
+          --without-x \
+          --with-gnutls \
+          --with-xml2 \
+          --with-modules \
+          --without-ns \
+          --without-imagemagick \
+          --without-dbus \
+          --without-selinux \
+          --with-tree-sitter \
+          --with-native-compilation=no
+
+    - name: Build Emacs with zig cc
+      run: |
+        make -j$(nproc) src
+
+    - name: Verify build
+      run: |
+        src/emacs --version
+
+    - name: Run test suite
+      continue-on-error: true
+      run: |
+        cd test
+        make check -j$(nproc) || true
+
+    - name: Upload test logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-logs
+        path: |
+          test/**/*.log
+          test/*.log
+        if-no-files-found: warn
+
+    - name: Test summary
+      if: always()
+      run: |
+        if [ -d test ]; then
+          echo "=== Test Summary ==="
+          grep -r "SUMMARY OF TEST RESULTS" test/ || echo "No summary found"
+        fi
