@@ -20,13 +20,20 @@ export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:/home/linuxbrew/.linuxbrew/opt/libxml2/
 export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:/home/linuxbrew/.linuxbrew/opt/tree-sitter/lib/pkgconfig"
 
 # LDFLAGS with rpath
-# Priority: /usr/lib64 first (system libstdc++), then brew libs
+# Priority: /usr/lib64 first (system libs), then brew libs
+# Note: Zig doesn't use libstdc++, so we don't need gcc/current lib directory
 export LDFLAGS="-L/home/linuxbrew/.linuxbrew/opt/ncurses/lib"
+export LDFLAGS="$LDFLAGS -L/home/linuxbrew/.linuxbrew/opt/libxml2/lib"
+export LDFLAGS="$LDFLAGS -L/home/linuxbrew/.linuxbrew/opt/gnutls/lib"
 export LDFLAGS="$LDFLAGS -Wl,-rpath,/usr/lib64"
 export LDFLAGS="$LDFLAGS -Wl,-rpath,/home/linuxbrew/.linuxbrew/lib"
+export LDFLAGS="$LDFLAGS -Wl,-rpath,/home/linuxbrew/.linuxbrew/opt/ncurses/lib"
+export LDFLAGS="$LDFLAGS -Wl,-rpath,/home/linuxbrew/.linuxbrew/opt/libxml2/lib"
+export LDFLAGS="$LDFLAGS -Wl,-rpath,/home/linuxbrew/.linuxbrew/opt/gnutls/lib"
 
 export CPPFLAGS="-I/home/linuxbrew/.linuxbrew/opt/ncurses/include"
 export CC="/home/kai/.local/zig/0.17.0/zig cc"
+export ZIG="/home/kai/.local/zig/0.17.0/zig"
 
 # Prevent autotools re-runs
 touch configure aclocal.m4

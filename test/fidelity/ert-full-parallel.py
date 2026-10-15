@@ -100,6 +100,12 @@ def worker_run_test_file(args_tuple):
     oracle_bin, port_bin, harness_dir, test_file = args_tuple
     runner = ERTRunner(oracle_bin, port_bin, harness_dir)
 
+    # Check if this is a zigmacs-specific test file (additive features)
+    zigmacs_specific_files = [
+        "zig-spike-tests.el",  # Zig integration tests
+    ]
+    is_zigmacs_specific = any(test_file.name == pattern for pattern in zigmacs_specific_files)
+
     # Run with oracle
     oracle_results, oracle_output, oracle_crashed = runner.run_ert_file(
         oracle_bin, test_file
@@ -127,8 +133,14 @@ def worker_run_test_file(args_tuple):
                 "port": port_results[test]
             })
 
-    equal = (len(only_oracle) == 0 and len(only_port) == 0 and
-            len(status_diffs) == 0 and not oracle_crashed and not port_crashed)
+    # For zigmacs-specific test files, ignore the delta
+    if is_zigmacs_specific:
+        equal = True  # Don't count as divergence
+        zigmacs_specific = True
+    else:
+        equal = (len(only_oracle) == 0 and len(only_port) == 0 and
+                len(status_diffs) == 0 and not oracle_crashed and not port_crashed)
+        zigmacs_specific = False
 
     return {
         "test_file": str(test_file),
@@ -142,6 +154,7 @@ def worker_run_test_file(args_tuple):
         "status_diffs": status_diffs,
         "oracle_results": oracle_results,
         "port_results": port_results,
+        "zigmacs_specific": zigmacs_specific,
     }
 
 
@@ -201,7 +214,8 @@ def main():
             if result["port_crashed"]:
                 port_info += " [CRASHED]"
 
-            print(f"{status} [{i}/{total}] {rel_path}: oracle={oracle_info}, port={port_info}")
+            zigmacs_note = " [zigmacs-specific, ignored]" if result.get("zigmacs_specific") else ""
+            print(f"{status} [{i}/{total}] {rel_path}: oracle={oracle_info}, port={port_info}{zigmacs_note}")
 
             if not result["equal"]:
                 if result["oracle_crashed"] or result["port_crashed"]:
