@@ -113,7 +113,15 @@ class ByteCompiler:
             oracle_hash = self.file_hash(oracle_elc)
             port_hash = self.file_hash(port_elc)
 
-            byte_identical = (oracle_hash == port_hash and oracle_hash != "NONE")
+            # Byte-identical if:
+            # - Both produced same .elc (hash match, not NONE), OR
+            # - Both correctly skipped compilation (both NONE with exit 0,
+            #   typically files with 'no-byte-compile: t' directive)
+            byte_identical = (
+                (oracle_hash == port_hash and oracle_hash != "NONE") or
+                (oracle_hash == "NONE" and port_hash == "NONE" and
+                 oracle_exit == 0 and port_exit == 0)
+            )
 
             result = {
                 "file": str(el_file),
