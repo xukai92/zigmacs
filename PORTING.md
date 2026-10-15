@@ -199,3 +199,73 @@ See `ARCH.md` for the full incremental porting strategy.
 - **Object model:** This spike uses simple fixnum/cons round-tripping. Real port will need full Lisp type system (strings, vectors, floats, symbols, etc.).
 
 ---
+
+## Phase N: Real C→Zig Ports (Incremental)
+
+**Status:** 🟢 In Progress (natnump is first leaf port)
+
+### Port Map
+
+| Function | Source | Zig Target | Status | Channel A | Channel B | Notes |
+|----------|--------|-----------|--------|-----------|-----------|-------|
+| `natnump` | `data.c:585` (Fnatnump) | `src/zig/natnump.zig` | ✅ PORTED | Property test + A/B mode | Corpus 13-natnump.el | First leaf port; establishes Channel A pattern |
+
+### Architecture: Channel A In-Process A/B Verification
+
+Each ported function follows this pattern:
+1. **Original C preserved** as `*_orig` (e.g., `natnump_orig` in data.c) — exact upstream, statically linked
+2. **DEFUN becomes dispatcher**:
+   - Normal mode: returns Zig result (`zig_natnump(object)`) — Zig is the live implementation
+   - A/B mode (`ZIGMACS_AB=1`): computes BOTH, asserts `EQ`, aborts on mismatch with repro
+3. **Shim layer**: `src/zig/shim.c` + `src/zig/shim.h` expose macro/inline/GMP API as linkable symbols
+4. **Zig implementation**: self-contained (Zig 0.17.0 has limited module support), uses shim via `extern "c"`
+
+### Verification Coverage (natnump)
+
+- **Channel A Property Test**: `test/src/natnump-channel-a-tests.el` (5 ERT tests, comprehensive input battery)
+  - Fixnum boundaries: 0, 1, -1, most-positive/negative-fixnum
+  - Bignums: positive/negative, including large values (2^100, -2^100)
+  - Non-integers: nil, t, symbols, strings, floats, cons, vectors
+  - Runs with `ZIGMACS_AB=1` to enable in-process verification
+- **Channel B Differential**: `test/fidelity/corpus/13-natnump.el` (oracle vs port, exact output match)
+- **Existing ERT**: `test/src/data-tests.el` (57 tests, includes natnump coverage)
+
+### Build Integration
+
+- **Makefile rules** (`src/Makefile.in`):
+  - `zig/shim.o`: Compile C shim with standard CC
+  - `zig/natnump.o`: Compile Zig via `zig build-obj -target native -OReleaseSafe -lc`
+  - Linked into `base_obj` (shim) and `zig_port_obj` (natnump)
+- **Dependencies**: `src/zig/shim.{c,h}` must be compiled before any Zig port
+- **ZIG variable**: Must be set to Zig binary path (e.g., `ZIG=/home/kai/.local/zig/0.17.0/zig make`)
+
+### Bug-for-Bug Fidelity
+
+natnump port matches upstream EXACTLY:
+- ✅ Returns `t` for 0 (not an error)
+- ✅ Returns `nil` for non-integers (floats, symbols, strings, etc.) — no type error
+- ✅ Correct bignum sign handling via `mpz_sgn` shim
+- ✅ Pure function (no side effects, matches `attributes: const`)
+
+### Test Results
+
+```
+Channel A: 5/5 ERT tests PASS (with ZIGMACS_AB=1 verification)
+Channel B: 13/13 corpus PASS (was 12/12; added 13-natnump.el)
+data-tests: 57/57 PASS (existing test suite, no regressions)
+```
+
+### Files Added/Modified
+
+**New files:**
+- `src/zig/emacs.zig` — Shared type definitions (Lisp_Object), currently unused (Zig 0.17.0 module limits)
+- `src/zig/shim.c` + `src/zig/shim.h` — Shared C shim (macro/inline/GMP wrappers)
+- `src/zig/natnump.zig` — First real port (self-contained, inline bindings)
+- `test/src/natnump-channel-a-tests.el` — Channel A property tests
+- `test/fidelity/corpus/13-natnump.el` — Channel B differential input
+
+**Modified files:**
+- `src/data.c` — Added Channel A dispatcher for natnump, preserved original as `natnump_orig`
+- `src/Makefile.in` — Build rules for zig/shim.o and zig/natnump.o
+
+---

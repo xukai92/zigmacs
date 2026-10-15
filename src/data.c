@@ -35,6 +35,13 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "frame.h"
 #include "keymap.h"
 
+/* === Zig port extern declarations === */
+
+/* Zig implementation of natnump (first C→Zig leaf port in Zigmacs) */
+extern Lisp_Object zig_natnump (Lisp_Object object);
+
+/* === End Zig declarations === */
+
 static void swap_in_symval_forwarding (struct Lisp_Symbol *,
 				       struct Lisp_Buffer_Local_Value *);
 
@@ -582,14 +589,55 @@ DEFUN ("integer-or-marker-p", Finteger_or_marker_p, Sinteger_or_marker_p, 1, 1, 
   return Qnil;
 }
 
+/* Original C implementation of natnump, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+natnump_orig (Lisp_Object object)
+{
+  return ((FIXNUMP (object) ? 0 <= XFIXNUM (object)
+	   : BIGNUMP (object) && 0 <= mpz_sgn (*xbignum_val (object)))
+	  ? Qt : Qnil);
+}
+
+/* Channel A dispatcher for natnump.
+   Normal mode: returns zig_natnump(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("natnump", Fnatnump, Snatnump, 1, 1, 0,
        doc: /* Return t if OBJECT is a nonnegative integer.  */
        attributes: const)
   (Lisp_Object object)
 {
-  return ((FIXNUMP (object) ? 0 <= XFIXNUM (object)
-	   : BIGNUMP (object) && 0 <= mpz_sgn (*xbignum_val (object)))
-	  ? Qt : Qnil);
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_natnump (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = natnump_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: natnump ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 DEFUN ("numberp", Fnumberp, Snumberp, 1, 1, 0,
