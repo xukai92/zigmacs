@@ -68,7 +68,11 @@ jobs:
 
     - name: Build Emacs with zig cc
       run: |
-        make -j$(nproc) src
+        # Full build (not just `src`): compiles all of lisp/ to .elc.
+        # Required because we no longer vendor generated .elc (upstream doesn't
+        # either); `make src` alone leaves lisp uncompiled, which breaks tests
+        # that depend on compiled files / load-history (semantic, loadhist, ...).
+        make -j$(nproc)
 
     - name: Verify build
       run: |
