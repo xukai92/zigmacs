@@ -65,6 +65,12 @@ zig_INTEGERP (Lisp_Object obj)
   return INTEGERP (obj);
 }
 
+bool
+zig_FLOATP (Lisp_Object obj)
+{
+  return FLOATP (obj);
+}
+
 /* === Nil and Qt === */
 
 Lisp_Object

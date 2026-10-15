@@ -17,6 +17,7 @@ extern bool zig_bignum_nonnegative (Lisp_Object obj);
 /* Number operations */
 extern bool zig_NUMBERP (Lisp_Object obj);
 extern bool zig_INTEGERP (Lisp_Object obj);
+extern bool zig_FLOATP (Lisp_Object obj);
 
 /* Nil and Qt */
 extern Lisp_Object zig_Qnil (void);
