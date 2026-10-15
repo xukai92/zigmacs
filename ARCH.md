@@ -52,11 +52,23 @@ intermediate state must be expressible and sound.
 - **Rust's borrow checker rejects exactly this intermediate state.** Self-referential,
   mutable, cyclic, GC-managed graphs shared across a C/Rust boundary are precisely what Rust
   makes hard. This is the wall Remacs (C→Rust) hit at the GC and `xdisp`.
-- **Zig has no ownership model to fight** and `@cImport`s Emacs's existing C headers into the
-  *same* build with no FFI/bindgen tax. A half-ported graph is "just pointers," exactly as it
-  already is in C — so the port can proceed one function at a time.
+- **Zig has no ownership model to fight**, and `zig cc` compiles Emacs's existing C into the
+  *same* binary with a shared ABI — so a half-ported graph is "just pointers," exactly as it
+  already is in C, with **no FFI marshalling boundary**. The port proceeds one function at a
+  time. Ported Zig binds to the still-unported C directly via `extern` declarations for the
+  thousands of linkable functions (every `DEFUN`, exported helpers) plus a thin hand-written
+  C shim (dozens of trivial wrappers) exposing `lisp.h`'s macro / `INLINE` API — `make_fixnum`,
+  `XFIXNUM`, `CONSP`, `XCAR`, `Qnil`, `NILP`, … — as callable symbols.
 - Zig also gives precise control over data layout and allocators (useful for a custom GC) and
   `zig cc` can act as a drop-in C compiler for the parts not yet ported.
+
+> **Binding-mechanism note (updated 2026-10-15, Phase-1 spike).** Earlier drafts assumed Zig's
+> `@cImport` would pull in Emacs's headers automatically. Our pinned **Zig 0.17.0 removed
+> `@cImport`** from the compiler, and the underlying `translate-c` **segfaults on `lisp.h`**
+> regardless — automatic header import is not available. The **extern-decls + thin-C-shim**
+> strategy above replaces it and was proven end-to-end by the `zigmacs--cimport-selftest` spike
+> (round-trips real `Lisp_Object` values: `(42 (99 . 100) nil t)`). This is a convenience change,
+> not a strategic one — the "just pointers, no borrow checker" advantage over Rust is unchanged.
 
 The accepted trade-off: Zig does **not** give Rust's memory-safety guarantees. We accept this
 because the alternative (Rust) makes the incremental superset strategy itself infeasible.
