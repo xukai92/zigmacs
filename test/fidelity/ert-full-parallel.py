@@ -171,8 +171,11 @@ def main():
     parser.add_argument("--output", help="Output JSON file for results")
     args = parser.parse_args()
 
-    harness_dir = Path(args.harness_dir)
-    test_dir = Path(args.test_dir)
+    # Convert to absolute paths (critical for subprocess calls)
+    oracle_bin = str(Path(args.oracle).resolve())
+    port_bin = str(Path(args.port).resolve())
+    harness_dir = Path(args.harness_dir).resolve()
+    test_dir = Path(args.test_dir).resolve()
 
     if not test_dir.exists():
         print(f"Error: {test_dir} not found")
@@ -183,8 +186,8 @@ def main():
 
     total = len(test_files)
     print(f"Full ERT suite results-equality comparison")
-    print(f"Oracle: {args.oracle}")
-    print(f"Port: {args.port}")
+    print(f"Oracle: {oracle_bin}")
+    print(f"Port: {port_bin}")
     print(f"Test files: {total}")
 
     # Use fewer jobs for ERT (each test runs multiple tests, more memory-intensive)
@@ -194,7 +197,7 @@ def main():
 
     # Prepare worker arguments
     worker_args = [
-        (args.oracle, args.port, harness_dir, test_file)
+        (oracle_bin, port_bin, harness_dir, test_file)
         for test_file in test_files
     ]
 

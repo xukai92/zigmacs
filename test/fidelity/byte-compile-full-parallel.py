@@ -179,8 +179,11 @@ def main():
     parser.add_argument("--output", help="Output JSON file for results")
     args = parser.parse_args()
 
-    harness_dir = Path(args.harness_dir)
-    lisp_dir = Path(args.lisp_dir)
+    # Convert to absolute paths (critical when running from temp directories)
+    oracle_bin = str(Path(args.oracle).resolve())
+    port_bin = str(Path(args.port).resolve())
+    harness_dir = Path(args.harness_dir).resolve()
+    lisp_dir = Path(args.lisp_dir).resolve()
 
     if not lisp_dir.exists():
         print(f"Error: {lisp_dir} not found")
@@ -204,15 +207,15 @@ def main():
 
     total = len(filtered_files)
     print(f"Full-lisp/ byte-compile replay")
-    print(f"Oracle: {args.oracle}")
-    print(f"Port: {args.port}")
+    print(f"Oracle: {oracle_bin}")
+    print(f"Port: {port_bin}")
     print(f"Files: {total} (filtered from {len(el_files)})")
     print(f"Cores: {args.jobs or mp.cpu_count()}")
     print("=" * 70)
 
     # Prepare worker arguments
     worker_args = [
-        (args.oracle, args.port, harness_dir, el_file)
+        (oracle_bin, port_bin, harness_dir, el_file)
         for el_file in filtered_files
     ]
 

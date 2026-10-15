@@ -138,8 +138,11 @@ def main():
     parser.add_argument("--output", help="Output JSON for detailed results")
     args = parser.parse_args()
 
-    test_dir = Path(args.test_dir)
-    harness_dir = Path(args.harness_dir)
+    # Convert to absolute paths (critical for subprocess calls)
+    oracle_bin = str(Path(args.oracle).resolve())
+    port_bin = str(Path(args.port).resolve())
+    test_dir = Path(args.test_dir).resolve()
+    harness_dir = Path(args.harness_dir).resolve()
     preamble = harness_dir / "preamble.el"
 
     if not test_dir.exists():
@@ -152,8 +155,8 @@ def main():
     print("=" * 70)
     print("Zigmacs CI Gate: ERT Results-Equality")
     print("=" * 70)
-    print(f"Oracle: {args.oracle}")
-    print(f"Port:   {args.port}")
+    print(f"Oracle: {oracle_bin}")
+    print(f"Port:   {port_bin}")
     print(f"Test files: {len(test_files)}")
     print("=" * 70)
     print()
@@ -164,7 +167,7 @@ def main():
         rel_path = test_file.relative_to(test_dir)
         print(f"[{i}/{len(test_files)}] {rel_path}...", end=" ", flush=True)
 
-        result = compare_test_file(args.oracle, args.port, test_file, preamble)
+        result = compare_test_file(oracle_bin, port_bin, test_file, preamble)
         results.append(result)
 
         if result["equal"]:
