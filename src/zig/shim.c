@@ -59,6 +59,12 @@ zig_NUMBERP (Lisp_Object obj)
   return NUMBERP (obj);
 }
 
+bool
+zig_INTEGERP (Lisp_Object obj)
+{
+  return INTEGERP (obj);
+}
+
 /* === Nil and Qt === */
 
 Lisp_Object
