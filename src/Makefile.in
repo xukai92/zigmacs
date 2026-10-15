@@ -561,7 +561,8 @@ endif
 
 ## Zig build rule for Phase-1 interop spike
 ## Use zig build-obj to compile .zig to .o (NOT zig cc)
-ZIG = /home/kai/.local/zig/0.17.0/zig
+## ZIG defaults to 'zig' in PATH; override with ZIG=/path/to/zig if needed
+ZIG ?= zig
 zig_spike.o: $(srcdir)/zig_spike.zig
 	$(AM_V_GEN)$(ZIG) build-obj -target native -OReleaseSafe -lc \
 	  $(srcdir)/zig_spike.zig -femit-bin=$@
