@@ -1,0 +1,130 @@
+name: Zigmacs Nightly Fidelity
+
+# Heavy tier: full results-equality + full-lisp byte-identical
+# Per HARNESS.md §13: runs nightly and on-demand
+on:
+  schedule:
+    # Run at 02:00 UTC daily
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # Allow manual trigger
+  push:
+    tags:
+      - 'v*'  # Also run on release tags
+
+jobs:
+  full-fidelity:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          autoconf \
+          automake \
+          texinfo \
+          libgnutls28-dev \
+          libxml2-dev \
+          libtree-sitter-dev \
+          build-essential \
+          pkg-config \
+          libncurses-dev \
+          gcc
+
+    - name: Install Zig 0.17.0
+      run: |
+        wget -q https://ziglang.org/download/0.17.0/zig-x86_64-linux-0.17.0.tar.xz
+        echo "1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026  zig-x86_64-linux-0.17.0.tar.xz" | sha256sum --check
+        tar -xf zig-x86_64-linux-0.17.0.tar.xz
+        echo "$PWD/zig-x86_64-linux-0.17.0" >> $GITHUB_PATH
+
+    - name: Verify toolchains
+      run: |
+        gcc --version
+        zig version
+
+    - name: Build gcc oracle
+      run: |
+        # Build the oracle (gcc-compiled ground truth)
+        bash scripts/build-oracle.sh
+
+    - name: Verify oracle checksums
+      run: |
+        cd oracle && sha256sum -c CHECKSUMS
+
+    - name: Configure with zig cc
+      run: |
+        touch configure aclocal.m4
+        CC="zig cc" ./configure \
+          --without-x \
+          --with-gnutls \
+          --with-xml2 \
+          --with-modules \
+          --without-ns \
+          --without-imagemagick \
+          --without-dbus \
+          --without-selinux \
+          --with-tree-sitter \
+          --with-native-compilation=no
+
+    - name: Build Emacs with zig cc
+      run: |
+        make -j$(nproc) src
+
+    - name: Verify zig-cc build
+      run: |
+        src/emacs --version
+
+    - name: Full-lisp byte-identical replay
+      run: |
+        python3 test/fidelity/byte-compile-full-parallel.py \
+          --oracle oracle/emacs-gcc \
+          --port src/emacs \
+          --harness-dir test/fidelity \
+          --lisp-dir lisp \
+          --jobs $(nproc) \
+          --output test/fidelity/byte-compile-full-results.json
+
+    - name: Full ERT results-equality
+      run: |
+        python3 test/fidelity/ert-full-parallel.py \
+          --oracle oracle/emacs-gcc \
+          --port src/emacs \
+          --harness-dir test/fidelity \
+          --test-dir test \
+          --jobs $(nproc) \
+          --output test/fidelity/ert-full-results.json
+
+    - name: Results-equality gate
+      run: |
+        # This is the real gate: oracle results ≡ port results
+        # Environmental failures cancel out naturally (no allowlist needed)
+        python3 scripts/ci-gate-results-equality.py \
+          --oracle oracle/emacs-gcc \
+          --port src/emacs \
+          --test-dir test \
+          --harness-dir test/fidelity \
+          --output test/fidelity/gate-result.json
+
+    - name: Upload fidelity reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: fidelity-reports
+        path: |
+          test/fidelity/*.json
+          test/fidelity/FIDELITY_SCALE_REPORT.md
+        if-no-files-found: warn
+
+    - name: Upload test logs (if gate failed)
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: failed-test-logs
+        path: |
+          test/**/*.log
+          test/*.log
+        if-no-files-found: warn

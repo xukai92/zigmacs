@@ -93,4 +93,8 @@ jobs:
     - name: CI test gate
       if: always()
       run: |
+        # Fast tier: uses allowlist-based gate (ci-gate.py) for per-PR speed.
+        # Building the gcc oracle every PR would double build time.
+        # The FULL results-equality gate (ci-gate-results-equality.py) runs
+        # nightly in nightly.yml, which builds BOTH binaries and compares them.
         python3 scripts/ci-gate.py
