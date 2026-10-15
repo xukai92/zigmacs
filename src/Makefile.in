@@ -579,7 +579,7 @@ zig_cimport_spike.o: $(srcdir)/zig_cimport_spike.zig
 
 ## Shared C shim for Zig ports (macro/inline/GMP API wrappers)
 zig/shim.o: $(srcdir)/zig/shim.c $(srcdir)/zig/shim.h
-	$(AM_V_CC)$(CC) -c $(CPPFLAGS) $(CFLAGS) $(DEPFLAGS) \
+	$(AM_V_CC)$(CC) -c $(CPPFLAGS) $(ALL_CFLAGS) $(PROFILING_CFLAGS) \
 	  $(srcdir)/zig/shim.c -o $@
 
 ## Real Zig ports (natnump is first)
