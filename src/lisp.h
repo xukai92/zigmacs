@@ -4254,6 +4254,7 @@ extern void swap_in_global_binding (struct Lisp_Symbol *);
 
 /* Defined in zig_spike_glue.c (Phase-1 C↔Zig interop spike).  */
 extern void syms_of_zig_spike (void);
+extern void syms_of_zig_cimport_spike (void);
 
 /* Defined in cmds.c */
 extern void syms_of_cmds (void);
