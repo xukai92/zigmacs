@@ -40,6 +40,9 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 /* Zig implementation of natnump (first C→Zig leaf port in Zigmacs) */
 extern Lisp_Object zig_natnump (Lisp_Object object);
 
+/* Zig implementation of nlistp (second C→Zig leaf port in Zigmacs) */
+extern Lisp_Object zig_nlistp (Lisp_Object object);
+
 /* === End Zig declarations === */
 
 static void swap_in_symval_forwarding (struct Lisp_Symbol *,
@@ -343,14 +346,55 @@ Otherwise, return nil.  */
   return Qnil;
 }
 
+/* Original C implementation of nlistp, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+nlistp_orig (Lisp_Object object)
+{
+  if (CONSP (object) || NILP (object))
+    return Qnil;
+  return Qt;
+}
+
+/* Channel A dispatcher for nlistp.
+   Normal mode: returns zig_nlistp(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("nlistp", Fnlistp, Snlistp, 1, 1, 0,
        doc: /* Return t if OBJECT is not a list.  Lists include nil.  */
        attributes: const)
   (Lisp_Object object)
 {
-  if (CONSP (object) || NILP (object))
-    return Qnil;
-  return Qt;
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_nlistp (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = nlistp_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: nlistp ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 DEFUN ("bare-symbol-p", Fbare_symbol_p, Sbare_symbol_p, 1, 1, 0,

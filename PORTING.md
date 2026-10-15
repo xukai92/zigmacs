@@ -202,13 +202,14 @@ See `ARCH.md` for the full incremental porting strategy.
 
 ## Phase N: Real C→Zig Ports (Incremental)
 
-**Status:** 🟢 In Progress (natnump is first leaf port)
+**Status:** 🟢 In Progress (2 functions ported)
 
 ### Port Map
 
 | Function | Source | Zig Target | Status | Channel A | Channel B | Notes |
 |----------|--------|-----------|--------|-----------|-----------|-------|
 | `natnump` | `data.c:585` (Fnatnump) | `src/zig/natnump.zig` | ✅ PORTED | Property test + A/B mode | Corpus 13-natnump.el | First leaf port; establishes Channel A pattern |
+| `nlistp` | `data.c:346` (Fnlistp) | `src/zig/nlistp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 14-nlistp.el | Second leaf port; tests list predicates |
 
 ### Architecture: Channel A In-Process A/B Verification
 

@@ -489,8 +489,8 @@ base_obj = dispnew.o frame.o scroll.o xdisp.o menu.o $(XMENU_OBJ) window.o     \
 zig_spike_obj = zig_spike.o
 ## Phase-2 @cImport spike objects
 zig_cimport_spike_obj = zig_cimport_spike.o
-## Phase-N: Real Zig ports (natnump is first)
-zig_port_obj = zig/natnump.o
+## Phase-N: Real Zig ports (natnump is first, nlistp is second)
+zig_port_obj = zig/natnump.o zig/nlistp.o
 doc_obj = $(base_obj) $(NS_OBJC_OBJ)
 obj = $(doc_obj) $(HAIKU_CXX_OBJ) $(zig_spike_obj) $(zig_cimport_spike_obj) $(zig_port_obj)
 
@@ -583,11 +583,15 @@ zig/shim.o: $(srcdir)/zig/shim.c $(srcdir)/zig/shim.h
 	$(AM_V_CC)$(CC) -c $(CPPFLAGS) $(ALL_CFLAGS) $(PROFILING_CFLAGS) \
 	  $(srcdir)/zig/shim.c -o $@
 
-## Real Zig ports (natnump is first)
+## Real Zig ports (natnump is first, nlistp is second)
 ## Note: Zig 0.17.0 module system is limited; each port is self-contained
 zig/natnump.o: $(srcdir)/zig/natnump.zig
 	$(AM_V_GEN)$(ZIG) build-obj -target native -OReleaseSafe -lc \
 	  $(srcdir)/zig/natnump.zig -femit-bin=$@
+
+zig/nlistp.o: $(srcdir)/zig/nlistp.zig
+	$(AM_V_GEN)$(ZIG) build-obj -target native -OReleaseSafe -lc \
+	  $(srcdir)/zig/nlistp.zig -femit-bin=$@
 
 ## This is the list of all Lisp files that might be loaded into the
 ## dumped Emacs.  Some of them are not loaded on all platforms, but
