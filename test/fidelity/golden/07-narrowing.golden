@@ -1,0 +1,7 @@
+=== Narrowing ===
+Full buffer: "0123456789", point-min=1, point-max=11
+After narrow 3-8: visible="23456", point-min=3, point-max=8
+After insert in narrow: "A23456"
+Inside save-restriction (widened): "01A23456789", min=1, max=12
+After save-restriction: still narrow="A23456", min=3, max=9
+After widen: "01A23456789", min=1, max=12

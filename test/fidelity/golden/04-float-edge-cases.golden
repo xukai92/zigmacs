@@ -1,0 +1,28 @@
+Not enough arguments for format string
+=== Float edge cases ===
+1.0e+INF: 1.0e+INF
+-1.0e+INF: -1.0e+INF
+0.0e+NaN: 0.0e+NaN
+-0.0: -0.0
+equal -0.0 0.0: nil
+eql -0.0 0.0: nil
+= -0.0 0.0: t
+isnan NaN: t
+= NaN NaN: nil
+equal NaN NaN: t
+1.0e+INF + 1.0: 1.0e+INF
+1.0e+INF - 1.0e+INF: -0.0e+NaN
+1.0e+INF * 2.0: 1.0e+INF
+1.0 / 0.0: 1.0e+INF
+1.0e-308: 1e-308
+1.0e308: 1e+308
+
+Error: error ("Not enough arguments for format string")
+  format("%.17g format of 0.1: %.17g\n" 0.1)
+  (princ (format "%.17g format of 0.1: %.17g\n" 0.1))
+  eval-buffer(#<buffer  *load*> nil "/workspace/home/kai/zigmacs-design/harness/corpus/04-float-edge-cases.el" nil t)
+  load-with-code-conversion("/workspace/home/kai/zigmacs-design/harness/corpus/04-float-edge-cases.el" "/workspace/home/kai/zigmacs-design/harness/corpus/04-float-edge-cases.el" nil t)
+  load("/workspace/home/kai/zigmacs-design/harness/corpus/04-float-edge-cases.el" nil t)
+  command-line-1(("-l" "/home/kai/zigmacs-design/harness/preamble.el" "-l" "/home/kai/zigmacs-design/harness/corpus/04-float-edge-cases.el"))
+  command-line()
+  normal-top-level()

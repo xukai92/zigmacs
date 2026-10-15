@@ -1,0 +1,19 @@
+=== nil/() duality tests ===
+nil eq (): t
+nil equal (): t
+null nil: t
+null (): t
+consp nil: nil
+listp nil: t
+listp (): t
+car nil: nil
+cdr nil: nil
+cons 1 nil: (1)
+cons 1 (): (1)
+append nil nil: nil
+if nil then else: else
+if () then else: else
+not nil: t
+not (): t
+equal nil '(nil): nil
+equal () '(nil): nil

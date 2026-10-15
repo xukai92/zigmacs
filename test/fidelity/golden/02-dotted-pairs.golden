@@ -1,0 +1,16 @@
+=== Dotted pairs and improper lists ===
+dotted pair: (a . b)
+car: a, cdr: b
+consp: t, listp: t
+improper list: (1 2 3 . 4)
+car: 1
+cdr: (2 3 . 4)
+cadr: 2
+cddr: (3 . 4)
+cdddr: 4
+nested dotted: ((a . b) c . d)
+caar: a
+cdar: b
+equal (1 . 2) (1 . 2): t
+equal (1 . 2) (1 2): nil
+equal (1 2) (1 . (2)): t

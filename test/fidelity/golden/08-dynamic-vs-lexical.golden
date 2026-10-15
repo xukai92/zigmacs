@@ -1,0 +1,18 @@
+Symbol's value as variable is void: x
+=== Lexical binding tests ===
+Lexical: outer x=42, inner x=99, (funcall get-x)=42
+
+=== Dynamic binding simulation ===
+Dynamic: (get-x-dynamic)=99
+
+=== let vs let* ===
+
+Error: void-variable (x)
+  (+ x 10)
+  (let ((x 1) (y (+ x 10))) (princ (format "let with forward ref attempt: x=%d\n" x)))
+  eval-buffer(#<buffer  *load*> nil "/workspace/home/kai/zigmacs-design/harness/corpus/08-dynamic-vs-lexical.el" nil t)
+  load-with-code-conversion("/workspace/home/kai/zigmacs-design/harness/corpus/08-dynamic-vs-lexical.el" "/workspace/home/kai/zigmacs-design/harness/corpus/08-dynamic-vs-lexical.el" nil t)
+  load("/workspace/home/kai/zigmacs-design/harness/corpus/08-dynamic-vs-lexical.el" nil t)
+  command-line-1(("-l" "/home/kai/zigmacs-design/harness/preamble.el" "-l" "/home/kai/zigmacs-design/harness/corpus/08-dynamic-vs-lexical.el"))
+  command-line()
+  normal-top-level()

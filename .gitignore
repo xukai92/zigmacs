@@ -72,6 +72,8 @@ zig-out/
 
 # Oracle builds (fidelity testing reference binaries)
 /oracle/
+# But commit the checksums
+!/oracle/CHECKSUMS
 
 # IDE
 .vscode/

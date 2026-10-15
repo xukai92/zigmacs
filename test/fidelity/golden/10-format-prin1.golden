@@ -1,0 +1,21 @@
+=== Format and prin1 edge cases ===
+Integer %d: 42
+Float %f: 3.141590
+String %s: hello
+S-exp %S: (a b c)
+Octal %o: 377
+Hex %x: ff
+Hex %X: FF
+Width 10: '        42'
+Left-align: '42        '
+Zero-pad: '0000000042'
+Precision: '3.14'
+Percent: %
+Multiple: 1 two three
+prin1 of string: "hello
+world"
+princ of string: hello
+world
+prin1-to-string: "(a \"b\" (c . d))"
+Circular list: #1=(a b c . #1#)
+Uninterned symbol: #:uninterned

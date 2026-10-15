@@ -1,0 +1,13 @@
+=== Bignum/fixnum boundary tests ===
+most-positive-fixnum: 2305843009213693951
+most-negative-fixnum: -2305843009213693952
+fixnump most-positive-fixnum: t
+bignump most-positive-fixnum: nil
+most-positive-fixnum + 1: 2305843009213693952
+fixnump: nil, bignump: t
+most-negative-fixnum - 1: -2305843009213693953
+fixnump: nil, bignump: t
+2 * most-positive-fixnum: 4611686018427387902
+most-positive-fixnum + most-negative-fixnum: -1
+2^100: 1267650600228229401496703205376
+bignump: t

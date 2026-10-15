@@ -1,0 +1,17 @@
+=== Unicode and coding systems ===
+String: Hello, 世界! 🌍
+Length: 12
+Bytes: 19
+Char 'A': 65 (0x41)
+Char '世': 19990 (0x4E16)
+Char '🌍': 127757 (0x1F30D)
+Iterating characters:
+  0: a (code 97)
+  1: → (code 8594)
+  2: b (code 98)
+Original: Ω
+UTF-8 encoded bytes: (206 169)
+Decoded: Ω
+Equal: t
+Multibyte string: nil
+Unibyte string: nil

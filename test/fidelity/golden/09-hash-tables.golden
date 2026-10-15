@@ -1,0 +1,12 @@
+=== Hash tables ===
+Hash table size: 4
+gethash 'key1': value1
+gethash 42: forty-two
+gethash 'missing': none (default: 'none)
+Iteration:
+  "key1" -> value1
+  "key2" -> value2
+  "key3" -> value3
+  42 -> forty-two
+After remhash 'key2', size: 3
+eq hash: nil, eql hash: nil

@@ -1,0 +1,135 @@
+# Allowed-divergence registry for Zigmacs fidelity harness
+# Per HARNESS.md §6: every permitted deviation must be registered here.
+#
+# Rules:
+# - Any un-normalized divergence not covered here fails the build
+# - Dead masks (never-firing normalizers) are flagged
+# - Categories: inherent | scaffolding (bug-for-bug is NOT a divergence)
+
+[[divergence]]
+id = "addr-window-id"
+surface = "a"  # return value
+pattern = "#<window [0-9]+"
+category = "inherent"
+rationale = "Window object IDs are address-derived and non-semantic"
+owner = "harness"
+review_by = ""
+
+[[divergence]]
+id = "addr-frame-id"
+surface = "a"
+pattern = "#<frame .* 0x[0-9a-f]+>"
+category = "inherent"
+rationale = "Frame object addresses are non-semantic"
+owner = "harness"
+review_by = ""
+
+[[divergence]]
+id = "addr-buffer-pointer"
+surface = "a"
+pattern = "#<buffer .+ 0x[0-9a-f]+>"
+category = "inherent"
+rationale = "Buffer object addresses when printed in some contexts"
+owner = "harness"
+review_by = ""
+
+[[divergence]]
+id = "pid"
+surface = "a|b"
+pattern = "\\bpid [0-9]+|PID: [0-9]+"
+category = "inherent"
+rationale = "Process IDs are per-execution and non-semantic"
+owner = "harness"
+review_by = ""
+
+[[divergence]]
+id = "gensym-counter"
+surface = "a"
+pattern = "#:g[0-9]+"
+category = "inherent"
+rationale = "Gensym counter values are non-semantic; only structure matters"
+owner = "harness"
+review_by = ""
+
+[[divergence]]
+id = "time-iso"
+surface = "a|b"
+pattern = "[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}"
+category = "inherent"
+rationale = "Time values despite preamble freezing (some contexts resist override)"
+owner = "harness"
+review_by = ""
+
+[[divergence]]
+id = "time-ctime"
+surface = "a|b"
+pattern = "[A-Z][a-z][a-z] [A-Z][a-z][a-z] [ 0-9][0-9] [0-9]{2}:[0-9]{2}:[0-9]{2} [0-9]{4}"
+category = "inherent"
+rationale = "ctime-style timestamp despite preamble freezing"
+owner = "harness"
+review_by = ""
+
+[[divergence]]
+id = "temp-paths"
+surface = "a|b|d"
+pattern = "/tmp/[a-zA-Z0-9_-]+|/var/folders/.+"
+category = "inherent"
+rationale = "Temporary file paths vary per-run"
+owner = "harness"
+review_by = ""
+
+[[divergence]]
+id = "user-home-path"
+surface = "a|b|d"
+pattern = "/home/[^/]+/|/Users/[^/]+/"
+category = "inherent"
+rationale = "User-specific paths normalized to generic form"
+owner = "harness"
+review_by = ""
+
+[[divergence]]
+id = "system-name"
+surface = "a|b"
+pattern = "system-name: [^ \n]+"
+category = "inherent"
+rationale = "System hostname varies by machine"
+owner = "harness"
+review_by = ""
+
+[[divergence]]
+id = "user-login"
+surface = "a|b"
+pattern = "user: [^ \n]+"
+category = "inherent"
+rationale = "User login name varies by environment"
+owner = "harness"
+review_by = ""
+
+[[divergence]]
+id = "memory-address"
+surface = "a|b"
+pattern = "\\b0x[0-9a-f]{8,16}\\b"
+category = "inherent"
+rationale = "Raw memory addresses in various output contexts"
+owner = "harness"
+review_by = ""
+
+[[divergence]]
+id = "emacs-build-time"
+surface = "a"
+pattern = "emacs-build-time: .+"
+category = "inherent"
+rationale = "Build timestamp varies between oracle and port builds"
+owner = "harness"
+review_by = ""
+
+# Scaffolding divergences would go here with review_by dates
+# Example:
+# [[divergence]]
+# id = "temp-buffer-encoding-bug"
+# surface = "d"
+# pattern = "..."
+# category = "scaffolding"
+# rationale = "Phase 1 WIP: buffer encoding not yet ported"
+# owner = "buffer-team"
+# review_by = "2026-11-01"

@@ -1,0 +1,11 @@
+=== Char-tables ===
+aref ct ?a: letter-a
+aref ct ?z: letter-z
+aref ct ?b: default-value (default)
+After set-range A-Z: aref ?A: uppercase, ?M: uppercase, ?Z: uppercase
+Char-table map:
+  (123 . 4194303) -> default-value
+  48 -> digit-zero
+  (123 . 4194303) -> default-value
+  (123 . 4194303) -> uppercase
+  (123 . 4194303) -> default-value
