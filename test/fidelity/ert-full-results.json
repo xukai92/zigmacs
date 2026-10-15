@@ -1,0 +1,271 @@
+{
+  "summary": {
+    "total_files": 460,
+    "equal_files": 454,
+    "divergent_files": 6,
+    "total_oracle_tests": 7980,
+    "total_port_tests": 7980,
+    "elapsed_sec": 242.56173634529114
+  },
+  "divergent_files": [
+    {
+      "test_file": "/workspace/home/kai/src/zigmacs/test/lisp/net/eww-tests.el",
+      "equal": false,
+      "oracle_count": 9,
+      "port_count": 9,
+      "oracle_crashed": false,
+      "port_crashed": false,
+      "only_oracle": [],
+      "only_port": [],
+      "status_diffs": [
+        {
+          "test": "eww-test/display/html",
+          "oracle": "skipped",
+          "port": "passed"
+        },
+        {
+          "test": "eww-test/readable/default-readable",
+          "oracle": "skipped",
+          "port": "passed"
+        },
+        {
+          "test": "eww-test/readable/toggle-display",
+          "oracle": "skipped",
+          "port": "passed"
+        }
+      ],
+      "oracle_results": {
+        "eww-test/display/html": "skipped",
+        "eww-test/history/back-forward": "passed",
+        "eww-test/history/before-navigate/clone-previous": "passed",
+        "eww-test/history/before-navigate/delete-future-history": "passed",
+        "eww-test/history/before-navigate/ignore-history": "passed",
+        "eww-test/history/new-page": "passed",
+        "eww-test/history/reload-in-place": "passed",
+        "eww-test/readable/default-readable": "skipped",
+        "eww-test/readable/toggle-display": "skipped"
+      },
+      "port_results": {
+        "eww-test/display/html": "passed",
+        "eww-test/history/back-forward": "passed",
+        "eww-test/history/before-navigate/clone-previous": "passed",
+        "eww-test/history/before-navigate/delete-future-history": "passed",
+        "eww-test/history/before-navigate/ignore-history": "passed",
+        "eww-test/history/new-page": "passed",
+        "eww-test/history/reload-in-place": "passed",
+        "eww-test/readable/default-readable": "passed",
+        "eww-test/readable/toggle-display": "passed"
+      }
+    },
+    {
+      "test_file": "/workspace/home/kai/src/zigmacs/test/lisp/net/shr-tests.el",
+      "equal": false,
+      "oracle_count": 4,
+      "port_count": 4,
+      "oracle_crashed": false,
+      "port_crashed": false,
+      "only_oracle": [],
+      "only_port": [],
+      "status_diffs": [
+        {
+          "test": "rendering",
+          "oracle": "skipped",
+          "port": "passed"
+        }
+      ],
+      "oracle_results": {
+        "rendering": "skipped",
+        "shr-srcset": "passed",
+        "shr-test/zoom-image": "skipped",
+        "use-cookies": "passed"
+      },
+      "port_results": {
+        "rendering": "passed",
+        "shr-srcset": "passed",
+        "shr-test/zoom-image": "skipped",
+        "use-cookies": "passed"
+      }
+    },
+    {
+      "test_file": "/workspace/home/kai/src/zigmacs/test/src/xml-tests.el",
+      "equal": false,
+      "oracle_count": 1,
+      "port_count": 1,
+      "oracle_crashed": false,
+      "port_crashed": false,
+      "only_oracle": [],
+      "only_port": [],
+      "status_diffs": [
+        {
+          "test": "libxml-tests",
+          "oracle": "skipped",
+          "port": "passed"
+        }
+      ],
+      "oracle_results": {
+        "libxml-tests": "skipped"
+      },
+      "port_results": {
+        "libxml-tests": "passed"
+      }
+    },
+    {
+      "test_file": "/workspace/home/kai/src/zigmacs/test/src/zig-spike-tests.el",
+      "equal": false,
+      "oracle_count": 2,
+      "port_count": 2,
+      "oracle_crashed": false,
+      "port_crashed": false,
+      "only_oracle": [],
+      "only_port": [],
+      "status_diffs": [
+        {
+          "test": "zig-spike-interop-selftest",
+          "oracle": "failed",
+          "port": "passed"
+        },
+        {
+          "test": "zig-spike-primitive-exists",
+          "oracle": "failed",
+          "port": "passed"
+        }
+      ],
+      "oracle_results": {
+        "zig-spike-interop-selftest": "failed",
+        "zig-spike-primitive-exists": "failed"
+      },
+      "port_results": {
+        "zig-spike-interop-selftest": "passed",
+        "zig-spike-primitive-exists": "passed"
+      }
+    },
+    {
+      "test_file": "/workspace/home/kai/src/zigmacs/test/src/process-tests.el",
+      "equal": false,
+      "oracle_count": 37,
+      "port_count": 37,
+      "oracle_crashed": false,
+      "port_crashed": false,
+      "only_oracle": [],
+      "only_port": [],
+      "status_diffs": [
+        {
+          "test": "lookup-family-specification",
+          "oracle": "passed",
+          "port": "skipped"
+        },
+        {
+          "test": "lookup-google",
+          "oracle": "passed",
+          "port": "skipped"
+        },
+        {
+          "test": "lookup-unicode-domains",
+          "oracle": "passed",
+          "port": "skipped"
+        },
+        {
+          "test": "non-existent-lookup-failure",
+          "oracle": "passed",
+          "port": "skipped"
+        },
+        {
+          "test": "unibyte-domain-name",
+          "oracle": "passed",
+          "port": "skipped"
+        }
+      ],
+      "oracle_results": {
+        "lookup-family-specification": "passed",
+        "lookup-google": "passed",
+        "lookup-hints-specification": "passed",
+        "lookup-hints-values": "passed",
+        "lookup-unicode-domains": "passed",
+        "make-process-w32-debug-spawn-error": "skipped",
+        "make-process/connection-type/in-pty": "passed",
+        "make-process/connection-type/out-pty": "passed",
+        "make-process/connection-type/out-pty-with-stderr-buffer": "passed",
+        "make-process/connection-type/pipe": "passed",
+        "make-process/connection-type/pipe-2": "passed",
+        "make-process/connection-type/pty": "passed",
+        "make-process/connection-type/pty-2": "passed",
+        "make-process/connection-type/pty-with-stderr-buffer": "passed",
+        "make-process/file-handler/disable": "passed",
+        "make-process/file-handler/found": "passed",
+        "make-process/file-handler/not-found": "passed",
+        "make-process/mix-stderr": "passed",
+        "make-process/noquery-stderr": "passed",
+        "make-process/stop": "passed",
+        "non-existent-lookup-failure": "passed",
+        "process-num-processors": "passed",
+        "process-sentinel-interrupt-event": "skipped",
+        "process-test-sentinel-accept-process-output": "passed",
+        "process-test-sentinel-sit-for": "passed",
+        "process-test-stderr-buffer": "passed",
+        "process-test-stderr-filter": "passed",
+        "process-tests/fd-setsize-no-crash/make-network-process": "passed",
+        "process-tests/fd-setsize-no-crash/make-pipe-process": "passed",
+        "process-tests/fd-setsize-no-crash/make-process": "passed",
+        "process-tests/fd-setsize-no-crash/make-serial-process": "passed",
+        "process-tests/multiple-threads-waiting": "passed",
+        "process-tests/sentinel-called": "passed",
+        "process-tests/sentinel-with-multiple-processes": "passed",
+        "set-process-filter-t": "passed",
+        "start-process-should-not-modify-arguments": "passed",
+        "unibyte-domain-name": "passed"
+      },
+      "port_results": {
+        "lookup-family-specification": "skipped",
+        "lookup-google": "skipped",
+        "lookup-hints-specification": "passed",
+        "lookup-hints-values": "passed",
+        "lookup-unicode-domains": "skipped",
+        "make-process-w32-debug-spawn-error": "skipped",
+        "make-process/connection-type/in-pty": "passed",
+        "make-process/connection-type/out-pty": "passed",
+        "make-process/connection-type/out-pty-with-stderr-buffer": "passed",
+        "make-process/connection-type/pipe": "passed",
+        "make-process/connection-type/pipe-2": "passed",
+        "make-process/connection-type/pty": "passed",
+        "make-process/connection-type/pty-2": "passed",
+        "make-process/connection-type/pty-with-stderr-buffer": "passed",
+        "make-process/file-handler/disable": "passed",
+        "make-process/file-handler/found": "passed",
+        "make-process/file-handler/not-found": "passed",
+        "make-process/mix-stderr": "passed",
+        "make-process/noquery-stderr": "passed",
+        "make-process/stop": "passed",
+        "non-existent-lookup-failure": "skipped",
+        "process-num-processors": "passed",
+        "process-sentinel-interrupt-event": "skipped",
+        "process-test-sentinel-accept-process-output": "passed",
+        "process-test-sentinel-sit-for": "passed",
+        "process-test-stderr-buffer": "passed",
+        "process-test-stderr-filter": "passed",
+        "process-tests/fd-setsize-no-crash/make-network-process": "passed",
+        "process-tests/fd-setsize-no-crash/make-pipe-process": "passed",
+        "process-tests/fd-setsize-no-crash/make-process": "passed",
+        "process-tests/fd-setsize-no-crash/make-serial-process": "passed",
+        "process-tests/multiple-threads-waiting": "passed",
+        "process-tests/sentinel-called": "passed",
+        "process-tests/sentinel-with-multiple-processes": "passed",
+        "set-process-filter-t": "passed",
+        "start-process-should-not-modify-arguments": "passed",
+        "unibyte-domain-name": "skipped"
+      }
+    },
+    {
+      "test_file": "/workspace/home/kai/src/zigmacs/test/lisp/net/tramp-tests.el",
+      "equal": false,
+      "oracle_count": 0,
+      "port_count": 0,
+      "oracle_crashed": true,
+      "port_crashed": true,
+      "only_oracle": [],
+      "only_port": [],
+      "status_diffs": [],
+      "oracle_results": {},
+      "port_results": {}
+    }
+  ]
+}
