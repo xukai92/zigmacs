@@ -51,6 +51,14 @@ zig_bignum_nonnegative (Lisp_Object obj)
   return 0 <= mpz_sgn (*xbignum_val (obj));
 }
 
+/* === Number operations === */
+
+bool
+zig_NUMBERP (Lisp_Object obj)
+{
+  return NUMBERP (obj);
+}
+
 /* === Nil and Qt === */
 
 Lisp_Object

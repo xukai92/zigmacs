@@ -14,6 +14,9 @@ extern Lisp_Object zig_make_fixnum (intptr_t n);
 extern bool zig_BIGNUMP (Lisp_Object obj);
 extern bool zig_bignum_nonnegative (Lisp_Object obj);
 
+/* Number operations */
+extern bool zig_NUMBERP (Lisp_Object obj);
+
 /* Nil and Qt */
 extern Lisp_Object zig_Qnil (void);
 extern Lisp_Object zig_Qt (void);
