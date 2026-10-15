@@ -2308,6 +2308,7 @@ Using an Emacs configured with --with-x-toolkit=lucid does not have this problem
       syms_of_print ();
       syms_of_eval ();
       syms_of_floatfns ();
+      syms_of_zig_spike (); /* Phase-1 C↔Zig interop spike */
 
       syms_of_buffer ();
       syms_of_bytecode ();

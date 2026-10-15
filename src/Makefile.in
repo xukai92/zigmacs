@@ -482,9 +482,12 @@ base_obj = dispnew.o frame.o scroll.o xdisp.o menu.o $(XMENU_OBJ) window.o     \
 	$(if $(HYBRID_MALLOC),sheap.o) 					       \
 	$(MSDOS_OBJ) $(MSDOS_X_OBJ) $(NS_OBJ) $(CYGWIN_OBJ) $(FONT_OBJ)        \
 	$(W32_OBJ) $(WINDOW_SYSTEM_OBJ) $(XGSELOBJ)			       \
-	$(HAIKU_OBJ) $(PGTK_OBJ) $(ANDROID_OBJ)
+	$(HAIKU_OBJ) $(PGTK_OBJ) $(ANDROID_OBJ)                                \
+	zig_spike_glue.o
+## Phase-1 Zig spike objects (added to obj, not doc_obj, to avoid .o->.c substitution in make-docfile)
+zig_spike_obj = zig_spike.o
 doc_obj = $(base_obj) $(NS_OBJC_OBJ)
-obj = $(doc_obj) $(HAIKU_CXX_OBJ)
+obj = $(doc_obj) $(HAIKU_CXX_OBJ) $(zig_spike_obj)
 
 ## Object files used on some machine or other.
 ## These go in the DOC file on all machines in case they are needed.
@@ -555,6 +558,13 @@ else
   DEPFLAGS =
   include $(srcdir)/deps.mk
 endif
+
+## Zig build rule for Phase-1 interop spike
+## Use zig build-obj to compile .zig to .o (NOT zig cc)
+ZIG = /home/kai/.local/zig/0.17.0/zig
+zig_spike.o: $(srcdir)/zig_spike.zig
+	$(AM_V_GEN)$(ZIG) build-obj -target native -OReleaseSafe -lc \
+	  $(srcdir)/zig_spike.zig -femit-bin=$@
 
 ## This is the list of all Lisp files that might be loaded into the
 ## dumped Emacs.  Some of them are not loaded on all platforms, but

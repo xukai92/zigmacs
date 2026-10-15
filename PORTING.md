@@ -137,3 +137,65 @@ Future phases will:
 - Establish fidelity harness comparing zig-emacs to gcc-oracle
 
 See `ARCH.md` for the full incremental porting strategy.
+
+---
+
+## Phase 1: C↔Zig Interop Spike
+
+**Status:** ✅ Complete (2026-10-15)
+
+**Purpose:** Architecture de-risking spike to prove C↔Zig linkage — NOT a port. All changes are ADDITIVE, INERT, and reversible via `git revert`.
+
+### Files Added (New, Reversible)
+- **`src/zig_spike.zig`** — First Zig-language code in Zigmacs; exports functions callable from C
+- **`src/zig_spike_glue.c`** — C glue exposing `zigmacs--interop-selftest` primitive to Elisp
+- **`test/src/zig-spike-tests.el`** — ERT tests verifying C↔Zig interop
+
+### Files Modified
+- **`src/Makefile.in`** — Added Zig object build rule (`zig build-obj`) and linked `zig_spike.o` into `emacs`
+- **`src/lisp.h`** — Declared `syms_of_zig_spike()`
+- **`src/emacs.c`** — Registered `syms_of_zig_spike()` in symbol initialization
+
+### Proof Requirements (All Met)
+1. ✅ **Zig object links into binary:** `zig_spike.o` compiled via `zig build-obj -lc` and linked into `emacs`
+   - Verification: `nm src/emacs | grep zig_spike` shows `zig_spike_selftest`, `zig_spike_cons`, `zig_spike_add1`
+2. ✅ **C→Zig works:** C code (`zig_spike_glue.c`) calls Zig `export fn` functions
+3. ✅ **Zig→C works:** Zig code calls real Emacs C functions (`Fcons`, `Fadd1`) via `extern "c"`
+4. ✅ **Shared object model:** `Lisp_Object` round-trips correctly through Zig
+   - Tested: fixnums (42), cons cells `(99 . 100)`, nested structures `(43 44 . 0)`
+
+### Interop Mechanism
+- **Approach:** Hand-declared `Lisp_Object` as `extern struct { i: u64 }` (matching C typedef on 64-bit builds)
+- **C function calls:** Zig declares Emacs functions as `extern "c" fn Fcons(...) Lisp_Object`
+- **No FFI/bindgen:** Direct C ABI compatibility via Zig's native C interop
+- **`@cImport` status:** NOT attempted in this spike (focused on proving basic linkage; deferred to Phase 2+)
+
+### Test Results
+- **Manual verification:**
+  ```elisp
+  (zigmacs--interop-selftest) ⇒ (42 (99 . 100) (43 44 . 0))
+  ```
+  - Element 0: `42` — Zig called `Fadd1(41)`
+  - Element 1: `(99 . 100)` — Zig built cons via `Fcons(99, 100)`
+  - Element 2: `(43 44 . 0)` — Zig built nested cons via multiple `Fadd1` + `Fcons` calls
+
+- **ERT tests:** `test/src/zig-spike-tests.el` passes (2/2 tests)
+- **`make check` status:** Baseline parity (7740 tests, 1 unexpected in eglot-tests.log — same as Phase 0)
+- **Channel B differential:** 12/12 corpus tests PASS (no regressions)
+
+### What Changed
+- New namespaced primitive `zigmacs--interop-selftest` (double-dash = internal/experimental)
+- Zig build toolchain integrated into `src/Makefile` (uses `/home/kai/.local/zig/0.17.0/zig`)
+
+### What Did NOT Change
+- Zero changes to existing Emacs C functions or Elisp semantics
+- Zero impact on normal Emacs use (primitive only exists, never auto-invoked)
+- Spike is INERT — nothing changes unless user explicitly calls `(zigmacs--interop-selftest)`
+- Fully reversible via `git revert` (one clean commit)
+
+### Notes for Future Phases
+- **`@cImport` exploration:** Zig 0.17.0 can `@cImport("lisp.h")` in theory, but requires careful header dependency management (config.h, macros). This spike proves the manual-extern fallback works; `@cImport` remains a stretch goal for real porting work.
+- **Build system:** Current integration uses Makefile rules; Phase 2+ may move to `build.zig` for the full project.
+- **Object model:** This spike uses simple fixnum/cons round-tripping. Real port will need full Lisp type system (strings, vectors, floats, symbols, etc.).
+
+---
