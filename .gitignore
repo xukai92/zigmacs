@@ -380,6 +380,12 @@ lib-src/seccomp-filter-exec.pfc
 .gdb_history
 _gdb_history
 
+# Zigmacs oracle and fidelity test artifacts
+oracle/emacs-gcc
+oracle/emacs-gcc.pdmp
+oracle/*.pdmp
+test/fidelity/*-results.json
+
 # Files ignored in exec/.
 exec/aclocal.m4
 exec/config.guess

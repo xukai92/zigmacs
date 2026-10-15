@@ -28,6 +28,7 @@ $CC --version | head -n1
 
 # Set up build environment
 if [ -d "/home/linuxbrew/.linuxbrew" ]; then
+    # CentOS with Homebrew
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 
     # Homebrew paths (CentOS)
@@ -53,9 +54,23 @@ if [ -d "/home/linuxbrew/.linuxbrew" ]; then
 
     # Explicitly link hogweed/nettle (gcc doesn't pull them transitively from gnutls)
     export LIBS="-lhogweed -lnettle"
+
+    echo "=== Using Homebrew environment (CentOS) ==="
 else
-    # Ubuntu CI: use system packages
-    export PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig"
+    # Ubuntu CI: use system packages with standard paths
+    # apt provides gnutls/libxml2/tree-sitter/ncurses/nettle with pkg-config
+    # No custom PKG_CONFIG_PATH needed - system default includes:
+    #   /usr/lib/x86_64-linux-gnu/pkgconfig
+    #   /usr/share/pkgconfig
+    #   /usr/lib/pkgconfig
+
+    # Clear any inherited brew-specific flags
+    unset PKG_CONFIG_PATH
+    unset LDFLAGS
+    unset CPPFLAGS
+    unset LIBS
+
+    echo "=== Using system packages (Ubuntu) ==="
 fi
 
 export CC

@@ -61,6 +61,11 @@ jobs:
       run: |
         cd oracle && sha256sum -c CHECKSUMS
 
+    - name: Verify oracle binary runs
+      run: |
+        ./oracle/emacs-gcc --version
+        ./oracle/emacs-gcc --batch --eval '(message "Oracle smoke test: OK")'
+
     - name: Configure with zig cc
       run: |
         touch configure aclocal.m4
@@ -86,6 +91,52 @@ jobs:
     - name: Verify zig-cc build
       run: |
         src/emacs --version
+
+    - name: Feature-parity assertion
+      run: |
+        echo "=== Checking feature parity between oracle and port binaries ==="
+
+        # Extract system-configuration-features from both binaries
+        ORACLE_FEATURES=$(./oracle/emacs-gcc --batch --eval '(princ system-configuration-features)' 2>/dev/null)
+        PORT_FEATURES=$(./src/emacs --batch --eval '(princ system-configuration-features)' 2>/dev/null)
+
+        echo "Oracle features: $ORACLE_FEATURES"
+        echo "Port features: $PORT_FEATURES"
+
+        # Check for LIBXML2 in both
+        if ! echo "$ORACLE_FEATURES" | grep -q "LIBXML2"; then
+          echo "ERROR: Oracle binary missing LIBXML2 support!"
+          echo "This means --with-xml2 didn't work during oracle build."
+          exit 1
+        fi
+
+        if ! echo "$PORT_FEATURES" | grep -q "LIBXML2"; then
+          echo "ERROR: Port binary missing LIBXML2 support!"
+          echo "This means --with-xml2 didn't work during zig-cc build."
+          exit 1
+        fi
+
+        # Check features are identical
+        if [ "$ORACLE_FEATURES" != "$PORT_FEATURES" ]; then
+          echo "ERROR: Feature mismatch between oracle and port!"
+          echo "Oracle: $ORACLE_FEATURES"
+          echo "Port:   $PORT_FEATURES"
+          exit 1
+        fi
+
+        # Verify libxml is available at runtime
+        ORACLE_LIBXML=$(./oracle/emacs-gcc --batch --eval '(princ (libxml-available-p))' 2>/dev/null)
+        PORT_LIBXML=$(./src/emacs --batch --eval '(princ (libxml-available-p))' 2>/dev/null)
+
+        echo "Oracle libxml-available-p: $ORACLE_LIBXML"
+        echo "Port libxml-available-p: $PORT_LIBXML"
+
+        if [ "$ORACLE_LIBXML" != "t" ] || [ "$PORT_LIBXML" != "t" ]; then
+          echo "ERROR: libxml not available in one or both binaries!"
+          exit 1
+        fi
+
+        echo "✓ Feature parity confirmed: both binaries have identical features including LIBXML2"
 
     - name: Full-lisp byte-identical replay
       run: |
