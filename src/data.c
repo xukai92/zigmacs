@@ -76,6 +76,12 @@ extern Lisp_Object zig_char_or_string_p (Lisp_Object object);
 /* Zig implementation of atom (thirteenth C→Zig leaf port in Zigmacs) */
 extern Lisp_Object zig_atom (Lisp_Object object);
 
+/* Zig implementation of car-safe (Category B port, fanout round #2) */
+extern Lisp_Object zig_car_safe (Lisp_Object object);
+
+/* Zig implementation of cdr-safe (Category B port, fanout round #2) */
+extern Lisp_Object zig_cdr_safe (Lisp_Object object);
+
 /* === End Zig declarations === */
 
 static void swap_in_symval_forwarding (struct Lisp_Symbol *,
@@ -1240,11 +1246,52 @@ Lisp concepts such as car, cdr, cons cell and list.  */)
   return CAR (list);
 }
 
+/* Original C implementation of car-safe, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+car_safe_orig (Lisp_Object object)
+{
+  return CAR_SAFE (object);
+}
+
+/* Channel A dispatcher for car-safe.
+   Normal mode: returns zig_car_safe(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("car-safe", Fcar_safe, Scar_safe, 1, 1, 0,
        doc: /* Return the car of OBJECT if it is a cons cell, or else nil.  */)
   (Lisp_Object object)
 {
-  return CAR_SAFE (object);
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_car_safe (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = car_safe_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: car-safe ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 DEFUN ("cdr", Fcdr, Scdr, 1, 1, 0,
@@ -1258,11 +1305,52 @@ Lisp concepts such as cdr, car, cons cell and list.  */)
   return CDR (list);
 }
 
+/* Original C implementation of cdr-safe, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+cdr_safe_orig (Lisp_Object object)
+{
+  return CDR_SAFE (object);
+}
+
+/* Channel A dispatcher for cdr-safe.
+   Normal mode: returns zig_cdr_safe(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("cdr-safe", Fcdr_safe, Scdr_safe, 1, 1, 0,
        doc: /* Return the cdr of OBJECT if it is a cons cell, or else nil.  */)
   (Lisp_Object object)
 {
-  return CDR_SAFE (object);
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_cdr_safe (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = cdr_safe_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: cdr-safe ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 DEFUN ("setcar", Fsetcar, Ssetcar, 2, 2, 0,
