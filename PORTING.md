@@ -202,7 +202,7 @@ See `ARCH.md` for the full incremental porting strategy.
 
 ## Phase N: Real C→Zig Ports (Incremental)
 
-**Status:** 🟢 In Progress (20 functions ported)
+**Status:** 🟢 In Progress (35 functions ported)
 
 ### Port Map
 
@@ -219,6 +219,30 @@ See `ARCH.md` for the full incremental porting strategy.
 | `vectorp` | `data.c:544` (Fvectorp) | `src/zig/vectorp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 21-vectorp.el | Ninth leaf port; vector predicate (strings/bool-vectors/char-tables are NOT vectors) |
 | `listp` | `data.c:400` (Flistp) | `src/zig/listp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 22-listp.el | Tenth leaf port; list predicate (nil IS a list, inverse of nlistp) |
 | `goto-char` | `editfns.c:205` (Fgoto_char) | `src/zig/goto-char.zig` | ✅ PORTED | Snapshot→replay A/B mode | Corpus 23-goto-char.el | **FIRST Cat-C (stateful) port**; establishes snapshot→replay Channel A for mutations |
+| `bare-symbol-p` | `data.c:587` (Fbare_symbol_p) | `src/zig/bare-symbol-p.zig` | ✅ PORTED | Property test + A/B mode | — (no corpus) | Cat A; earlier batch (table reconciled 2026-10-16) |
+| `char-or-string-p` | `data.c:1122` (Fchar_or_string_p) | `src/zig/char-or-string-p.zig` | ✅ PORTED | Property test + A/B mode | — (no corpus) | Cat A; earlier batch |
+| `atom` | `data.c:433` (Fatom) | `src/zig/atom.zig` | ✅ PORTED | Property test + A/B mode | — (no corpus) | Cat A; earlier batch |
+| `length` | `fns.c:175` (Flength) | `src/zig/length.zig` | ✅ PORTED | Property test + A/B mode | — (no corpus) | Cat B; earlier batch |
+| `memq` | `fns.c:2072` (Fmemq) | `src/zig/memq.zig` | ✅ PORTED | Property test + A/B mode | — (no corpus) | Cat B; earlier batch; uses `zig_memq_helper` for FOR_EACH_TAIL |
+| `assq` | `fns.c:2161` (Fassq) | `src/zig/assq.zig` | ✅ PORTED | Property test + A/B mode | — (no corpus) | Cat B; earlier batch; uses `zig_assq_helper` |
+| `processp` | `process.c:1016` (Fprocessp) | `src/zig/processp.zig` | ✅ PORTED | Property test + A/B mode | — (no corpus) | Cat H₁; earlier batch |
+| `file-name-absolute-p` | `fileio.c:2982` (Ffile_name_absolute_p) | `src/zig/file-name-absolute-p.zig` | ✅ PORTED | Property test + A/B mode | — (no corpus) | Cat H₁; earlier batch |
+| `coding-system-p` | `coding.c:8630` (Fcoding_system_p) | `src/zig/coding-system-p.zig` | ✅ PORTED | Property test + A/B mode | — (no corpus) | Cat H₁; earlier batch |
+| `arrayp` | `data.c:944` (Farrayp) | `src/zig/arrayp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 24-arrayp.el | **Round #2** (fan-out); Cat A |
+| `recordp` | `data.c:763` (Frecordp) | `src/zig/recordp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 25-recordp.el | Round #2; Cat A |
+| `bool-vector-p` | `data.c:894` (Fbool_vector_p) | `src/zig/bool_vector_p.zig` | ✅ PORTED | Property test + A/B mode | Corpus 26-bool-vector-p.el | Round #2; Cat A |
+| `sequencep` | `data.c:994` (Fsequencep) | `src/zig/sequencep.zig` | ✅ PORTED | Property test + A/B mode | Corpus 27-sequencep.el | Round #2; Cat A (CONSP‖NILP‖ARRAYP) |
+| `car-safe` | `data.c:1436` (Fcar_safe) | `src/zig/car_safe.zig` | ✅ PORTED | Property test + A/B mode | Corpus 28-car-safe.el | Round #2; Cat B (`zig_CAR_SAFE`) |
+| `cdr-safe` | `data.c:1495` (Fcdr_safe) | `src/zig/cdr_safe.zig` | ✅ PORTED | Property test + A/B mode | Corpus 29-cdr-safe.el | Round #2; Cat B (`zig_CDR_SAFE`) |
+| `nth` | `fns.c:1958` (Fnth) | `src/zig/nth.zig` | ✅ PORTED | Property test + A/B mode | Corpus 30-nth.el | Round #2; Cat B (`Fcar (Fnthcdr …)`) |
+| `safe-length` | `fns.c:235` (Fsafe_length) | `src/zig/safe_length.zig` | ✅ PORTED | Property test + A/B mode | Corpus 31-safe-length.el | Round #2; Cat B (`zig_safe_length_count` helper) |
+| `bobp` | `editfns.c:1101` (Fbobp) | `src/zig/bobp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 32-bobp.el | Round #2; Cat C read-only point pred (simple dispatcher) |
+| `eobp` | `editfns.c:1154` (Feobp) | `src/zig/eobp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 33-eobp.el | Round #2; Cat C read-only point pred |
+| `bolp` | `editfns.c:1207` (Fbolp) | `src/zig/bolp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 34-bolp.el | Round #2; Cat C (`zig_FETCH_BYTE`) |
+| `eolp` | `editfns.c:1262` (Feolp) | `src/zig/eolp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 35-eolp.el | Round #2; Cat C (`zig_FETCH_BYTE`) |
+| `buffer-live-p` | `buffer.c:427` (Fbuffer_live_p) | `src/zig/buffer_live_p.zig` | ✅ PORTED | Property test + A/B mode | Corpus 36-buffer-live-p.el | Round #2; Cat H₁ (`zig_XBUFFER`/`zig_BUFFER_LIVE_P`) |
+| `keymapp` | `keymap.c:152` (Fkeymapp) | `src/zig/keymapp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 37-keymapp.el | Round #2; Cat H₁ (`zig_KEYMAPP`) |
+| `window-live-p` | `window.c:343` (Fwindow_live_p) | `src/zig/window_live_p.zig` | ✅ PORTED | Property test + A/B mode | Corpus 38-window-live-p.el | Round #2; Cat H₁ (`zig_WINDOW_LIVE_P`) |
 
 ### Architecture: Channel A In-Process A/B Verification
 
