@@ -490,7 +490,10 @@ zig_spike_obj = zig_spike.o
 ## Phase-2 @cImport spike objects
 zig_cimport_spike_obj = zig_cimport_spike.o
 ## Phase-N: Real Zig ports (natnump is first, nlistp is second)
-zig_port_obj = zig/natnump.o zig/nlistp.o zig/numberp.o zig/integerp.o zig/floatp.o zig/symbolp.o zig/stringp.o zig/consp.o zig/vectorp.o zig/listp.o
+## Auto-discover Zig ports: every src/zig/<name>.zig (except shared modules
+## like emacs.zig) compiles to zig/<name>.o -- new ports need NO edit here.
+zig_port_src = $(filter-out $(srcdir)/zig/emacs.zig,$(wildcard $(srcdir)/zig/*.zig))
+zig_port_obj = $(patsubst $(srcdir)/zig/%.zig,zig/%.o,$(zig_port_src))
 doc_obj = $(base_obj) $(NS_OBJC_OBJ)
 obj = $(doc_obj) $(HAIKU_CXX_OBJ) $(zig_spike_obj) $(zig_cimport_spike_obj) $(zig_port_obj)
 
@@ -583,47 +586,13 @@ zig/shim.o: $(srcdir)/zig/shim.c $(srcdir)/zig/shim.h
 	$(AM_V_CC)$(CC) -c $(CPPFLAGS) $(ALL_CFLAGS) $(PROFILING_CFLAGS) \
 	  $(srcdir)/zig/shim.c -o $@
 
-## Real Zig ports (natnump is first, nlistp is second)
-## Note: Zig 0.17.0 module system is limited; each port is self-contained
-zig/natnump.o: $(srcdir)/zig/natnump.zig
+## Real Zig ports: ONE pattern rule for every src/zig/<name>.zig -> zig/<name>.o.
+## New ports need NO Makefile edit (auto-discovered via the zig_port_obj glob).
+## zig/shim.o has its own explicit rule above; explicit rules win over patterns.
+## emacs.zig is @import'ed into each port, not a standalone object.
+zig/%.o: $(srcdir)/zig/%.zig $(srcdir)/zig/emacs.zig
 	$(AM_V_GEN)$(ZIG) build-obj -target native -OReleaseSafe -lc \
-	  $(srcdir)/zig/natnump.zig -femit-bin=$@
-
-zig/nlistp.o: $(srcdir)/zig/nlistp.zig
-	$(AM_V_GEN)$(ZIG) build-obj -target native -OReleaseSafe -lc \
-	  $(srcdir)/zig/nlistp.zig -femit-bin=$@
-
-zig/numberp.o: $(srcdir)/zig/numberp.zig
-	$(AM_V_GEN)$(ZIG) build-obj -target native -OReleaseSafe -lc \
-	  $(srcdir)/zig/numberp.zig -femit-bin=$@
-
-zig/integerp.o: $(srcdir)/zig/integerp.zig
-	$(AM_V_GEN)$(ZIG) build-obj -target native -OReleaseSafe -lc \
-	  $(srcdir)/zig/integerp.zig -femit-bin=$@
-
-zig/floatp.o: $(srcdir)/zig/floatp.zig
-	$(AM_V_GEN)$(ZIG) build-obj -target native -OReleaseSafe -lc \
-	  $(srcdir)/zig/floatp.zig -femit-bin=$@
-
-zig/symbolp.o: $(srcdir)/zig/symbolp.zig
-	$(AM_V_GEN)$(ZIG) build-obj -target native -OReleaseSafe -lc \
-	  $(srcdir)/zig/symbolp.zig -femit-bin=$@
-
-zig/stringp.o: $(srcdir)/zig/stringp.zig
-	$(AM_V_GEN)$(ZIG) build-obj -target native -OReleaseSafe -lc \
-	  $(srcdir)/zig/stringp.zig -femit-bin=$@
-
-zig/consp.o: $(srcdir)/zig/consp.zig
-	$(AM_V_GEN)$(ZIG) build-obj -target native -OReleaseSafe -lc \
-	  $(srcdir)/zig/consp.zig -femit-bin=$@
-
-zig/vectorp.o: $(srcdir)/zig/vectorp.zig
-	$(AM_V_GEN)$(ZIG) build-obj -target native -OReleaseSafe -lc \
-	  $(srcdir)/zig/vectorp.zig -femit-bin=$@
-
-zig/listp.o: $(srcdir)/zig/listp.zig
-	$(AM_V_GEN)$(ZIG) build-obj -target native -OReleaseSafe -lc \
-	  $(srcdir)/zig/listp.zig -femit-bin=$@
+	  $(srcdir)/zig/$*.zig -femit-bin=$@
 
 ## This is the list of all Lisp files that might be loaded into the
 ## dumped Emacs.  Some of them are not loaded on all platforms, but
