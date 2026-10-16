@@ -76,6 +76,18 @@ extern Lisp_Object zig_char_or_string_p (Lisp_Object object);
 /* Zig implementation of atom (thirteenth C→Zig leaf port in Zigmacs) */
 extern Lisp_Object zig_atom (Lisp_Object object);
 
+/* Zig implementation of arrayp (fourteenth C→Zig leaf port in Zigmacs) */
+extern Lisp_Object zig_arrayp (Lisp_Object object);
+
+/* Zig implementation of recordp (fifteenth C→Zig leaf port in Zigmacs) */
+extern Lisp_Object zig_recordp (Lisp_Object object);
+
+/* Zig implementation of bool-vector-p (sixteenth C→Zig leaf port in Zigmacs) */
+extern Lisp_Object zig_bool_vector_p (Lisp_Object object);
+
+/* Zig implementation of sequencep (seventeenth C→Zig leaf port in Zigmacs) */
+extern Lisp_Object zig_sequencep (Lisp_Object object);
+
 /* === End Zig declarations === */
 
 static void swap_in_symval_forwarding (struct Lisp_Symbol *,
@@ -729,13 +741,54 @@ DEFUN ("vectorp", Fvectorp, Svectorp, 1, 1, 0,
   return zig_result;
 }
 
-DEFUN ("recordp", Frecordp, Srecordp, 1, 1, 0,
-       doc: /* Return t if OBJECT is a record.  */)
-  (Lisp_Object object)
+/* Original C implementation of recordp, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+recordp_orig (Lisp_Object object)
 {
   if (RECORDP (object))
     return Qt;
   return Qnil;
+}
+
+/* Channel A dispatcher for recordp.
+   Normal mode: returns zig_recordp(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
+DEFUN ("recordp", Frecordp, Srecordp, 1, 1, 0,
+       doc: /* Return t if OBJECT is a record.  */)
+  (Lisp_Object object)
+{
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_recordp (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = recordp_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: recordp ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 /* Original C implementation of stringp, retained for Channel A verification.
@@ -819,31 +872,154 @@ DEFUN ("vector-or-char-table-p", Fvector_or_char_table_p,
   return Qnil;
 }
 
-DEFUN ("bool-vector-p", Fbool_vector_p, Sbool_vector_p, 1, 1, 0,
-       doc: /* Return t if OBJECT is a bool-vector.  */)
-  (Lisp_Object object)
+/* Original C implementation of bool-vector-p, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+bool_vector_p_orig (Lisp_Object object)
 {
   if (BOOL_VECTOR_P (object))
     return Qt;
   return Qnil;
 }
 
-DEFUN ("arrayp", Farrayp, Sarrayp, 1, 1, 0,
-       doc: /* Return t if OBJECT is an array (string or vector).  */)
+/* Channel A dispatcher for bool-vector-p.
+   Normal mode: returns zig_bool_vector_p(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
+DEFUN ("bool-vector-p", Fbool_vector_p, Sbool_vector_p, 1, 1, 0,
+       doc: /* Return t if OBJECT is a bool-vector.  */)
   (Lisp_Object object)
+{
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_bool_vector_p (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = bool_vector_p_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: bool-vector-p ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
+}
+
+/* Original C implementation of arrayp, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+arrayp_orig (Lisp_Object object)
 {
   if (ARRAYP (object))
     return Qt;
   return Qnil;
 }
 
-DEFUN ("sequencep", Fsequencep, Ssequencep, 1, 1, 0,
-       doc: /* Return t if OBJECT is a sequence (list or array).  */)
-  (register Lisp_Object object)
+/* Channel A dispatcher for arrayp.
+   Normal mode: returns zig_arrayp(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
+DEFUN ("arrayp", Farrayp, Sarrayp, 1, 1, 0,
+       doc: /* Return t if OBJECT is an array (string or vector).  */)
+  (Lisp_Object object)
+{
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_arrayp (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = arrayp_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: arrayp ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
+}
+
+/* Original C implementation of sequencep, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+sequencep_orig (Lisp_Object object)
 {
   if (CONSP (object) || NILP (object) || ARRAYP (object))
     return Qt;
   return Qnil;
+}
+
+/* Channel A dispatcher for sequencep.
+   Normal mode: returns zig_sequencep(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
+DEFUN ("sequencep", Fsequencep, Ssequencep, 1, 1, 0,
+       doc: /* Return t if OBJECT is a sequence (list or array).  */)
+  (register Lisp_Object object)
+{
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_sequencep (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = sequencep_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: sequencep ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 DEFUN ("bufferp", Fbufferp, Sbufferp, 1, 1, 0,
