@@ -103,6 +103,18 @@ extern Lisp_Object zig_markerp (Lisp_Object object);
 /* Zig implementation of bufferp (Category A port, fanout round #3) */
 extern Lisp_Object zig_bufferp (Lisp_Object object);
 
+/* Zig implementation of keywordp (Category A port, fanout round #4) */
+extern Lisp_Object zig_keywordp (Lisp_Object object);
+
+/* Zig implementation of subrp (Category A port, fanout round #4) */
+extern Lisp_Object zig_subrp (Lisp_Object object);
+
+/* Zig implementation of closurep (Category A port, fanout round #4) */
+extern Lisp_Object zig_closurep (Lisp_Object object);
+
+/* Zig implementation of multibyte-string-p (Category A port, fanout round #4) */
+extern Lisp_Object zig_multibyte_string_p (Lisp_Object object);
+
 /* === End Zig declarations === */
 
 static void swap_in_symval_forwarding (struct Lisp_Symbol *,
@@ -693,17 +705,58 @@ DEFUN ("symbolp", Fsymbolp, Ssymbolp, 1, 1, 0,
   return zig_result;
 }
 
-DEFUN ("keywordp", Fkeywordp, Skeywordp, 1, 1, 0,
-       doc: /* Return t if OBJECT is a keyword.
-This means that it is a symbol with a print name beginning with `:'
-interned in the initial obarray.  */)
-  (Lisp_Object object)
+/* Original C implementation of keywordp, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+keywordp_orig (Lisp_Object object)
 {
   if (SYMBOLP (object)
       && SREF (SYMBOL_NAME (object), 0) == ':'
       && SYMBOL_INTERNED_IN_INITIAL_OBARRAY_P (object))
     return Qt;
   return Qnil;
+}
+
+/* Channel A dispatcher for keywordp.
+   Normal mode: returns zig_keywordp(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
+DEFUN ("keywordp", Fkeywordp, Skeywordp, 1, 1, 0,
+       doc: /* Return t if OBJECT is a keyword.
+This means that it is a symbol with a print name beginning with `:'
+interned in the initial obarray.  */)
+  (Lisp_Object object)
+{
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_keywordp (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = keywordp_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: keywordp ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 /* Original C implementation of vectorp, retained for Channel A verification.
@@ -857,15 +910,56 @@ DEFUN ("stringp", Fstringp, Sstringp, 1, 1, 0,
   return zig_result;
 }
 
+/* Original C implementation of multibyte-string-p, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+multibyte_string_p_orig (Lisp_Object object)
+{
+  if (STRINGP (object) && STRING_MULTIBYTE (object))
+    return Qt;
+  return Qnil;
+}
+
+/* Channel A dispatcher for multibyte-string-p.
+   Normal mode: returns zig_multibyte_string_p(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("multibyte-string-p", Fmultibyte_string_p, Smultibyte_string_p,
        1, 1, 0,
        doc: /* Return t if OBJECT is a multibyte string.
 Return nil if OBJECT is either a unibyte string, or not a string.  */)
   (Lisp_Object object)
 {
-  if (STRINGP (object) && STRING_MULTIBYTE (object))
-    return Qt;
-  return Qnil;
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_multibyte_string_p (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = multibyte_string_p_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: multibyte-string-p ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 /* Original C implementation of char-table-p, retained for Channel A verification.
@@ -1189,25 +1283,107 @@ DEFUN ("user-ptrp", Fuser_ptrp, Suser_ptrp, 1, 1, 0,
 }
 #endif
 
-DEFUN ("subrp", Fsubrp, Ssubrp, 1, 1, 0,
-       doc: /* Return t if OBJECT is a built-in or native compiled Lisp function.
-
-See also `primitive-function-p' and `native-comp-function-p'.  */)
-  (Lisp_Object object)
+/* Original C implementation of subrp, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+subrp_orig (Lisp_Object object)
 {
   if (SUBRP (object))
     return Qt;
   return Qnil;
 }
 
+/* Channel A dispatcher for subrp.
+   Normal mode: returns zig_subrp(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
+DEFUN ("subrp", Fsubrp, Ssubrp, 1, 1, 0,
+       doc: /* Return t if OBJECT is a built-in or native compiled Lisp function.
+
+See also `primitive-function-p' and `native-comp-function-p'.  */)
+  (Lisp_Object object)
+{
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_subrp (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = subrp_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: subrp ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
+}
+
+/* Original C implementation of closurep, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+closurep_orig (Lisp_Object object)
+{
+  if (CLOSUREP (object))
+    return Qt;
+  return Qnil;
+}
+
+/* Channel A dispatcher for closurep.
+   Normal mode: returns zig_closurep(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("closurep", Fclosurep, Sclosurep,
        1, 1, 0,
        doc: /* Return t if OBJECT is a function of type `closure'.  */)
   (Lisp_Object object)
 {
-  if (CLOSUREP (object))
-    return Qt;
-  return Qnil;
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_closurep (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = closurep_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: closurep ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 DEFUN ("byte-code-function-p", Fbyte_code_function_p, Sbyte_code_function_p,
