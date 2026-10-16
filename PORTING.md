@@ -202,7 +202,7 @@ See `ARCH.md` for the full incremental porting strategy.
 
 ## Phase N: Real C→Zig Ports (Incremental)
 
-**Status:** 🟢 In Progress (19 functions ported)
+**Status:** 🟢 In Progress (20 functions ported)
 
 ### Port Map
 
@@ -218,6 +218,7 @@ See `ARCH.md` for the full incremental porting strategy.
 | `consp` | `data.c:333` (Fconsp) | `src/zig/consp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 20-consp.el | Eighth leaf port; cons predicate (nil is NOT a cons) |
 | `vectorp` | `data.c:544` (Fvectorp) | `src/zig/vectorp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 21-vectorp.el | Ninth leaf port; vector predicate (strings/bool-vectors/char-tables are NOT vectors) |
 | `listp` | `data.c:400` (Flistp) | `src/zig/listp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 22-listp.el | Tenth leaf port; list predicate (nil IS a list, inverse of nlistp) |
+| `goto-char` | `editfns.c:205` (Fgoto_char) | `src/zig/goto-char.zig` | ✅ PORTED | Snapshot→replay A/B mode | Corpus 23-goto-char.el | **FIRST Cat-C (stateful) port**; establishes snapshot→replay Channel A for mutations |
 
 ### Architecture: Channel A In-Process A/B Verification
 

@@ -15,7 +15,7 @@
 | **Golden oracle** | `oracle/emacs-gcc` — gcc build of the exact vendored source (`scripts/build-oracle.sh`) |
 | **Repo** | `github.com/xukai92/zigmacs` |
 | **Fidelity gates** | per-PR: build + `make check` (allowlist gate, 25-min timeout); nightly: full byte-identical + ERT results-equality vs oracle |
-| **Last updated** | 2026-10-16 — 19 ports landed (Cat A 13, B 3, H₁ 3); parallel fan-out trial done |
+| **Last updated** | 2026-10-16 — 20 ports landed (Cat A 13, B 3, C 1, H₁ 3); first stateful (Cat-C) port done |
 
 ## Progress by category
 
@@ -25,7 +25,7 @@ Surface ≈ **1,790 DEFUN primitives** total (~1,300 relevant to the nox build; 
 |---|---|---|---|---|---|
 | **A** | Pure type predicates / `const` primitives | DEFUN | **13 / 25** | ★ trivial | 1 |
 | **B** | Pure computational primitives (arith, list/seq/string builders) | DEFUN | **3 / ~230** *(est)* | ★★ easy-med | 1 |
-| **C** | Stateful primitives (mutate buffer/point/match-data/globals) | DEFUN | 0 / ~260 *(est)* | ★★★ med | 1 |
+| **C** | Stateful primitives (mutate buffer/point/match-data/globals) | DEFUN | **1 / ~260** *(est)* | ★★★ med | 1 |
 | **D** | Interpreter & reader core (`eval`, `bytecode` VM, `lread`) | subsystem | 0 / ~75 DEFUN + 3 engines | ★★★★ hard | 1–2 |
 | **E** | Buffer/text engine & search (`buffer`,`editfns`,`textprop`,`marker`,`insdel`,`search`,`regex`; ~21K LOC) | subsystem | 0 | ★★★★ hard | 2 |
 | **F** | Garbage collector (`alloc.c`, 8.4K LOC) | subsystem | 0 | ★★★★★ very hard | 2 |
@@ -52,11 +52,30 @@ Same Channel A dispatcher as A (dispatchers live in the fn's file, e.g. `fns.c`)
 3. **More accessors** than A: `XCAR`/`XCDR`/`CONSP`/`ASIZE`/`SCHARS`/`PVSIZE`/`EQ`/`BASE_EQ` shims.
 4. **Tests are property/fuzz batteries** (~10–20 edge cases): empty, single, long, dotted, **circular**, strings (ASCII+multibyte), vectors, bool-vectors, char-tables, wrong types, `eq`-vs-`equal` semantics.
 
-### Cat C — Stateful primitives — _how-to TBD (needs the snapshot→replay tool first)_
-_Mutate buffers/globals/match-data. Channel A needs **snapshot→replay**: run `*_orig` and the Zig port on independent clones of the touched state, compare BOTH return values AND resulting state. Build this tool before sampling C._
+### Cat C — Stateful primitives ✅ recipe proven (`goto-char`)
+Ports that mutate observable state (buffer point, mark, narrowing, text, match-data, globals). The Channel A dispatcher uses **snapshot→replay** to verify that Zig and C produce identical (return + post-state) on identical pre-state:
 
-### Cat C — Stateful primitives — _how-to TBD (write after sampling)_
-_Mutate buffers/globals/match-data. Channel A needs **snapshot→replay**: run `*_orig` and the Zig port on independent clones of the touched state, compare BOTH return values AND resulting state. This machinery is the key new infra before scaling C._
+1. **Identify the touched state** for the primitive (e.g., `goto-char` touches **point** only; future ports may touch mark, narrowing, text, markers, match-data, or globals).
+2. `src/zig/<name>.zig`: implement the Zig port using shim wrappers for state accessors/mutators (e.g., `zig_PT`, `zig_SET_PT`, `zig_BEGV`, `zig_ZV` for point; add wrappers to shim as needed).
+3. `src/<file>.c`: retain original as `<name>_orig`; make the `DEFUN` a **snapshot→replay Channel A dispatcher**:
+   - Under `ZIGMACS_AB=1`:
+     - **SNAPSHOT** the touched state (e.g., `ptrdiff_t snapshot_pt = PT;` for point)
+     - Run `<name>_orig(args)` (original C) → capture return + post-state
+     - **RESTORE** state to snapshot (e.g., `SET_PT(snapshot_pt);`)
+     - Run `zig_<name>(args)` (Zig port) → capture return + post-state
+     - **Assert** `EQ(zig_result, c_result) && zig_post_state == c_post_state`
+     - Abort with minimal repro on mismatch (include snapshot context + input args)
+   - Normal mode: just run `zig_<name>(args)` live (no snapshot overhead)
+4. **Tests**: ERT battery (`test/src/<name>-channel-a-tests.el`) + Channel B corpus (`test/fidelity/corpus/NN-<name>.el`). ERT tests **MUST run under `ZIGMACS_AB=1`** to exercise snapshot→replay verification. Use `with-temp-buffer` to isolate state (each test starts fresh).
+5. **Extending the snapshot**: for primitives that touch **multiple** pieces of state (e.g., a fn that moves point AND sets mark), expand the snapshot struct:
+   ```c
+   struct state_snapshot { ptrdiff_t pt; ptrdiff_t mark; ptrdiff_t begv; ptrdiff_t zv; };
+   struct state_snapshot snapshot = { PT, PT_MARK(current_buffer), BEGV, ZV };
+   // ... run_orig, capture, restore (SET_PT, SET_PT_MARK, ...), run_zig, compare
+   ```
+   For **text mutations** (insert/delete), snapshot = buffer contents (e.g., `buffer_text_copy = buffer_string()`); restore = replace full buffer. For **match-data**, snapshot via `Fmatch_data(Qnil, Qnil)`, restore via `Fset_match_data(...)`. See `goto-char` (point-only) as the simplest template.
+6. **Channel B corpus**: since stateful fns mutate, each test case **must reset state** (use `with-temp-buffer` or explicit cleanup). The corpus script runs under the SAME oracle/port binary, so differential = (final state after same input sequence), NOT independent re-runs.
+7. **Clean-build check** BEFORE push (stateful ports = new header dependencies).
 
 ### Cat D–G — Interpreter / buffer engine / GC / redisplay — _strategy, not per-function recipe_
 _These are whole-subsystem rewrites (Phase 2), NOT fan-out-able as independent small ports. How-to will be a design/sequencing doc per ARCH.md §5, §7._
