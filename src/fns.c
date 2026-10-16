@@ -66,6 +66,11 @@ extern Lisp_Object zig_elt (Lisp_Object sequence, Lisp_Object n);
 extern Lisp_Object zig_proper_list_p (Lisp_Object object);
 extern Lisp_Object zig_rassq (Lisp_Object key, Lisp_Object alist);
 
+/* Zig implementations (Category B ports, fanout round #4) */
+extern Lisp_Object zig_member (Lisp_Object elt, Lisp_Object list);
+extern Lisp_Object zig_assoc (Lisp_Object key, Lisp_Object alist, Lisp_Object testfn);
+extern Lisp_Object zig_hash_table_p (Lisp_Object obj);
+
 enum equal_kind { EQUAL_NO_QUIT, EQUAL_PLAIN, EQUAL_INCLUDING_PROPERTIES };
 static bool internal_equal (Lisp_Object, Lisp_Object,
 			    enum equal_kind, int, Lisp_Object);
@@ -2127,10 +2132,10 @@ eq_comparable_value (Lisp_Object x)
   return SYMBOLP (x) || FIXNUMP (x);
 }
 
-DEFUN ("member", Fmember, Smember, 2, 2, 0,
-       doc: /* Return non-nil if ELT is an element of LIST.  Comparison done with `equal'.
-The value is actually the tail of LIST whose car is ELT.  */)
-  (Lisp_Object elt, Lisp_Object list)
+/* Original C implementation of member, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+member_orig (Lisp_Object elt, Lisp_Object list)
 {
   if (eq_comparable_value (elt))
     return Fmemq (elt, list);
@@ -2140,6 +2145,49 @@ The value is actually the tail of LIST whose car is ELT.  */)
       return tail;
   CHECK_LIST_END (tail, list);
   return Qnil;
+}
+
+/* Channel A dispatcher for member.
+   Normal mode: returns zig_member(elt, list) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
+DEFUN ("member", Fmember, Smember, 2, 2, 0,
+       doc: /* Return non-nil if ELT is an element of LIST.  Comparison done with `equal'.
+The value is actually the tail of LIST whose car is ELT.  */)
+  (Lisp_Object elt, Lisp_Object list)
+{
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_member (elt, list);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = member_orig (elt, list);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: member ***\n");
+	  fprintf (stderr, "Input elt:      ");
+	  Fprin1 (elt, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nInput list:     ");
+	  Fprin1 (list, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result:     ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:       ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 /* Original C implementation of memq, retained for Channel A verification.
@@ -2314,13 +2362,10 @@ assq_no_signal (Lisp_Object key, Lisp_Object alist)
   return Qnil;
 }
 
-DEFUN ("assoc", Fassoc, Sassoc, 2, 3, 0,
-       doc: /* Return non-nil if KEY is equal to the car of an element of ALIST.
-The value is actually the first element of ALIST whose car equals KEY.
-
-Equality is defined by the function TESTFN, defaulting to `equal'.
-TESTFN is called with 2 arguments: a car of an alist element and KEY.  */)
-     (Lisp_Object key, Lisp_Object alist, Lisp_Object testfn)
+/* Original C implementation of assoc, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+assoc_orig (Lisp_Object key, Lisp_Object alist, Lisp_Object testfn)
 {
   if (eq_comparable_value (key) && NILP (testfn))
     return Fassq (key, alist);
@@ -2338,6 +2383,54 @@ TESTFN is called with 2 arguments: a car of an alist element and KEY.  */)
     }
   CHECK_LIST_END (tail, alist);
   return Qnil;
+}
+
+/* Channel A dispatcher for assoc.
+   Normal mode: returns zig_assoc(key, alist, testfn) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
+DEFUN ("assoc", Fassoc, Sassoc, 2, 3, 0,
+       doc: /* Return non-nil if KEY is equal to the car of an element of ALIST.
+The value is actually the first element of ALIST whose car equals KEY.
+
+Equality is defined by the function TESTFN, defaulting to `equal'.
+TESTFN is called with 2 arguments: a car of an alist element and KEY.  */)
+     (Lisp_Object key, Lisp_Object alist, Lisp_Object testfn)
+{
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_assoc (key, alist, testfn);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = assoc_orig (key, alist, testfn);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: assoc ***\n");
+	  fprintf (stderr, "Input key:      ");
+	  Fprin1 (key, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nInput alist:    ");
+	  Fprin1 (alist, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nInput testfn:   ");
+	  Fprin1 (testfn, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result:     ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:       ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 /* Like Fassoc but never report an error and do not allow quits.
@@ -6262,11 +6355,52 @@ DEFUN ("hash-table-weakness", Fhash_table_weakness, Shash_table_weakness,
 }
 
 
+/* Original C implementation of hash-table-p, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+hash_table_p_orig (Lisp_Object obj)
+{
+  return HASH_TABLE_P (obj) ? Qt : Qnil;
+}
+
+/* Channel A dispatcher for hash-table-p.
+   Normal mode: returns zig_hash_table_p(obj) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("hash-table-p", Fhash_table_p, Shash_table_p, 1, 1, 0,
        doc: /* Return t if OBJ is a Lisp hash table object.  */)
   (Lisp_Object obj)
 {
-  return HASH_TABLE_P (obj) ? Qt : Qnil;
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_hash_table_p (obj);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = hash_table_p_orig (obj);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: hash-table-p ***\n");
+	  fprintf (stderr, "Input obj:      ");
+	  Fprin1 (obj, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result:     ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:       ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 
