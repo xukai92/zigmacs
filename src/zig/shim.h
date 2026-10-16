@@ -117,4 +117,7 @@ extern ptrdiff_t zig_ZV_BYTE (void);
 extern void zig_SET_PT (ptrdiff_t position);
 extern struct buffer *zig_current_buffer (void);
 
+/* Symbol accessors (for type error reporting) */
+extern Lisp_Object zig_Qinteger_or_marker_p (void);
+
 #endif /* ZIG_SHIM_H */

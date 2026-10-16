@@ -452,3 +452,11 @@ zig_current_buffer (void)
 {
   return current_buffer;
 }
+
+/* === Symbol accessors (for type error reporting) === */
+
+Lisp_Object
+zig_Qinteger_or_marker_p (void)
+{
+  return Qinteger_or_marker_p;
+}

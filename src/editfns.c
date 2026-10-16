@@ -202,6 +202,37 @@ DEFUN ("point-marker", Fpoint_marker, Spoint_marker, 0, 0, 0,
   return build_marker (current_buffer, PT, PT_BYTE);
 }
 
+/* Original C implementation of goto-char (preserved for Channel A verification).
+   Set point to POSITION, a number or marker.
+   Clamps to [BEGV, ZV] and returns POSITION. */
+static Lisp_Object
+goto_char_orig (Lisp_Object position)
+{
+  if (MARKERP (position))
+    set_point_from_marker (position);
+  else if (FIXNUMP (position))
+    SET_PT (clip_to_bounds (BEGV, XFIXNUM (position), ZV));
+  else
+    wrong_type_argument (Qinteger_or_marker_p, position);
+  return position;
+}
+
+/* Zig implementation (defined in src/zig/goto-char.zig) */
+extern Lisp_Object zig_goto_char (Lisp_Object position);
+
+/* Channel A dispatcher for goto-char.
+   Normal mode: runs zig_goto_char(position) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): uses snapshot→replay to compare Zig vs C:
+     - SNAPSHOT point
+     - Run C version, capture (return, post-point)
+     - RESTORE point to snapshot
+     - Run Zig version, capture (return, post-point)
+     - Assert both return AND post-state match
+     - Abort on mismatch
+
+   This is the first Category C (stateful) port — the snapshot→replay pattern
+   generalizes to other stateful primitives (add mark/narrowing/text/markers
+   to the snapshot as needed). */
 DEFUN ("goto-char", Fgoto_char, Sgoto_char, 1, 1,
          "(goto-char--read-natnum-interactive \"Go to char: \")",
        doc: /* Set point to POSITION, a number or marker.
@@ -214,13 +245,66 @@ POSITION; without a numeric prefix argument, read POSITION from the
 minibuffer.  The default value is the number at point (if any).  */)
   (register Lisp_Object position)
 {
-  if (MARKERP (position))
-    set_point_from_marker (position);
-  else if (FIXNUMP (position))
-    SET_PT (clip_to_bounds (BEGV, XFIXNUM (position), ZV));
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  if (ab_mode)
+    {
+      /* A/B verification with snapshot→replay for stateful primitive.
+         Touched state: POINT (PT). */
+
+      /* SNAPSHOT: save current point */
+      ptrdiff_t snapshot_pt = PT;
+
+      /* Run original C implementation */
+      Lisp_Object c_result = goto_char_orig (position);
+      ptrdiff_t c_post_pt = PT;
+
+      /* RESTORE: rewind point to snapshot */
+      SET_PT (snapshot_pt);
+
+      /* Run Zig implementation */
+      Lisp_Object zig_result = zig_goto_char (position);
+      ptrdiff_t zig_post_pt = PT;
+
+      /* Compare: both return value AND post-state must match */
+      if (!EQ (zig_result, c_result) || c_post_pt != zig_post_pt)
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: goto-char ***\n");
+	  fprintf (stderr, "position:       ");
+	  Fprin1 (position, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nsnapshot PT:    %td", snapshot_pt);
+	  fprintf (stderr, "\nC result:       ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC post-PT:      %td", c_post_pt);
+	  fprintf (stderr, "\nZig result:     ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig post-PT:    %td", zig_post_pt);
+	  fprintf (stderr, "\n\nMinimal repro:\n");
+	  fprintf (stderr, "  (with-temp-buffer\n");
+	  fprintf (stderr, "    (insert \"<text from snapshot context>\")\n");
+	  fprintf (stderr, "    (goto-char %td)  ; set to snapshot PT\n", snapshot_pt);
+	  fprintf (stderr, "    (goto-char ");
+	  Fprin1 (position, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "))\n");
+	  emacs_abort ();
+	}
+
+      /* Both match — return Zig result (leave point at Zig's final state) */
+      return zig_result;
+    }
   else
-    wrong_type_argument (Qinteger_or_marker_p, position);
-  return position;
+    {
+      /* Normal mode: Zig is the live implementation */
+      return zig_goto_char (position);
+    }
 }
 
 
