@@ -78,6 +78,15 @@ jobs:
       run: |
         src/emacs --version
 
+    - name: Port tracker drift gate
+      run: |
+        # Fails if the ports detected in source (ZIGMACS_AB dispatchers / *.zig)
+        # disagree with the classification map (scripts/port-categories.tsv) —
+        # e.g. a new port landed without a map entry, or a .zig has no dispatcher.
+        # Runs after the build so sibling .o files exist (used to scope the
+        # "relevant/compiled" DEFUN surface). Keeps the progress table honest.
+        python3 scripts/port-progress.py --check
+
     - name: Run test suite
       run: |
         cd test
