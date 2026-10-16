@@ -30,6 +30,11 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "frame.h"
 
 static int internal_self_insert (int, EMACS_INT);
+
+/* Zig implementations (defined in src/zig/*.zig) */
+extern Lisp_Object zig_forward_char (Lisp_Object n);
+extern Lisp_Object zig_backward_char (Lisp_Object n);
+extern Lisp_Object zig_forward_line (Lisp_Object n);
 
 /* Add N to point; or subtract N if FORWARD is false.  N defaults to 1.
    Validate the new location.  Return nil.
@@ -68,6 +73,23 @@ move_point (Lisp_Object n, bool forward)
   return Qnil;
 }
 
+/* Original C implementation of forward-char (preserved for Channel A verification).
+   Move point N characters forward (backward if N is negative). */
+static Lisp_Object
+forward_char_orig (Lisp_Object n)
+{
+  return move_point (n, 1);
+}
+
+/* Channel A dispatcher for forward-char.
+   Normal mode: runs zig_forward_char(n) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): uses snapshot→replay to compare Zig vs C:
+     - SNAPSHOT point
+     - Run C version, capture (return, post-point)
+     - RESTORE point to snapshot
+     - Run Zig version, capture (return, post-point)
+     - Assert both return AND post-state match
+     - Abort on mismatch */
 DEFUN ("forward-char", Fforward_char, Sforward_char, 0, 1, "^p",
        doc: /* Move point N characters forward (backward if N is negative).
 On reaching end or beginning of buffer, stop and signal error.
@@ -79,9 +101,72 @@ right or to the left on the screen.  This is in contrast with
 \\[right-char], which see.  */)
   (Lisp_Object n)
 {
-  return move_point (n, 1);
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  if (ab_mode)
+    {
+      /* A/B verification with snapshot→replay for stateful primitive.
+         Touched state: POINT (PT). */
+
+      /* SNAPSHOT: save current point */
+      ptrdiff_t snapshot_pt = PT;
+
+      /* Run original C implementation */
+      Lisp_Object c_result = forward_char_orig (n);
+      ptrdiff_t c_post_pt = PT;
+
+      /* RESTORE: rewind point to snapshot */
+      SET_PT (snapshot_pt);
+
+      /* Run Zig implementation */
+      Lisp_Object zig_result = zig_forward_char (n);
+      ptrdiff_t zig_post_pt = PT;
+
+      /* Compare: both return value AND post-state must match */
+      if (!EQ (zig_result, c_result) || c_post_pt != zig_post_pt)
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: forward-char ***\n");
+	  fprintf (stderr, "n:              ");
+	  Fprin1 (n, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nsnapshot PT:    %td", snapshot_pt);
+	  fprintf (stderr, "\nC result:       ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC post-PT:      %td", c_post_pt);
+	  fprintf (stderr, "\nZig result:     ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig post-PT:    %td", zig_post_pt);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+
+      return zig_result;
+    }
+  else
+    {
+      /* Normal mode: Zig implementation is live */
+      return zig_forward_char (n);
+    }
 }
 
+/* Original C implementation of backward-char (preserved for Channel A verification).
+   Move point N characters backward (forward if N is negative). */
+static Lisp_Object
+backward_char_orig (Lisp_Object n)
+{
+  return move_point (n, 0);
+}
+
+/* Channel A dispatcher for backward-char.
+   Normal mode: runs zig_backward_char(n) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): uses snapshot→replay to compare Zig vs C. */
 DEFUN ("backward-char", Fbackward_char, Sbackward_char, 0, 1, "^p",
        doc: /* Move point N characters backward (forward if N is negative).
 On attempt to pass beginning or end of buffer, stop and signal error.
@@ -93,27 +178,65 @@ right or to the left on the screen.  This is in contrast with
 \\[left-char], which see.  */)
   (Lisp_Object n)
 {
-  return move_point (n, 0);
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  if (ab_mode)
+    {
+      /* A/B verification with snapshot→replay for stateful primitive.
+         Touched state: POINT (PT). */
+
+      /* SNAPSHOT: save current point */
+      ptrdiff_t snapshot_pt = PT;
+
+      /* Run original C implementation */
+      Lisp_Object c_result = backward_char_orig (n);
+      ptrdiff_t c_post_pt = PT;
+
+      /* RESTORE: rewind point to snapshot */
+      SET_PT (snapshot_pt);
+
+      /* Run Zig implementation */
+      Lisp_Object zig_result = zig_backward_char (n);
+      ptrdiff_t zig_post_pt = PT;
+
+      /* Compare: both return value AND post-state must match */
+      if (!EQ (zig_result, c_result) || c_post_pt != zig_post_pt)
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: backward-char ***\n");
+	  fprintf (stderr, "n:              ");
+	  Fprin1 (n, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nsnapshot PT:    %td", snapshot_pt);
+	  fprintf (stderr, "\nC result:       ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC post-PT:      %td", c_post_pt);
+	  fprintf (stderr, "\nZig result:     ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig post-PT:    %td", zig_post_pt);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+
+      return zig_result;
+    }
+  else
+    {
+      /* Normal mode: Zig implementation is live */
+      return zig_backward_char (n);
+    }
 }
 
-DEFUN ("forward-line", Fforward_line, Sforward_line, 0, 1, "^p",
-       doc: /* Move N lines forward (backward if N is negative).
-Precisely, if point is on line I, move to the start of line I + N
-\("start of line" in the logical order).
-If there isn't room, go as far as possible (no error).
-Interactively, N is the numeric prefix argument and defaults to 1.
-
-Returns the count of lines left to move.  If moving forward,
-that is N minus number of lines moved; if backward, N plus number
-moved.
-
-Exception: With positive N, a non-empty line at the end of the
-buffer, or of its accessible portion, counts as one line
-successfully moved (for the return value).  This means that the
-function will move point to the end of such a line and will count
-it as a line moved across, even though there is no next line to
-go to its beginning.  */)
-  (Lisp_Object n)
+/* Original C implementation of forward-line (preserved for Channel A verification).
+   Move N lines forward (backward if N is negative). */
+static Lisp_Object
+forward_line_orig (Lisp_Object n)
 {
   ptrdiff_t opoint = PT, pos, pos_byte, count;
   bool excessive = false;
@@ -145,6 +268,89 @@ go to its beginning.  */)
   return (excessive
 	  ? CALLN (Fplus, make_fixnum (shortage - count), n)
 	  : make_fixnum (shortage));
+}
+
+/* Channel A dispatcher for forward-line.
+   Normal mode: runs zig_forward_line(n) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): uses snapshot→replay to compare Zig vs C. */
+DEFUN ("forward-line", Fforward_line, Sforward_line, 0, 1, "^p",
+       doc: /* Move N lines forward (backward if N is negative).
+Precisely, if point is on line I, move to the start of line I + N
+\("start of line" in the logical order).
+If there isn't room, go as far as possible (no error).
+Interactively, N is the numeric prefix argument and defaults to 1.
+
+Returns the count of lines left to move.  If moving forward,
+that is N minus number of lines moved; if backward, N plus number
+moved.
+
+Exception: With positive N, a non-empty line at the end of the
+buffer, or of its accessible portion, counts as one line
+successfully moved (for the return value).  This means that the
+function will move point to the end of such a line and will count
+it as a line moved across, even though there is no next line to
+go to its beginning.  */)
+  (Lisp_Object n)
+{
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  if (ab_mode)
+    {
+      /* A/B verification with snapshot→replay for stateful primitive.
+         Touched state: POINT (PT and PT_BYTE). */
+
+      /* SNAPSHOT: save current point */
+      ptrdiff_t snapshot_pt = PT;
+      ptrdiff_t snapshot_byte = PT_BYTE;
+
+      /* Run original C implementation */
+      Lisp_Object c_result = forward_line_orig (n);
+      ptrdiff_t c_post_pt = PT;
+      ptrdiff_t c_post_byte = PT_BYTE;
+
+      /* RESTORE: rewind point to snapshot */
+      SET_PT_BOTH (snapshot_pt, snapshot_byte);
+
+      /* Run Zig implementation */
+      Lisp_Object zig_result = zig_forward_line (n);
+      ptrdiff_t zig_post_pt = PT;
+      ptrdiff_t zig_post_byte = PT_BYTE;
+
+      /* Compare: both return value AND post-state must match */
+      if (!EQ (zig_result, c_result) || c_post_pt != zig_post_pt || c_post_byte != zig_post_byte)
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: forward-line ***\n");
+	  fprintf (stderr, "n:              ");
+	  Fprin1 (n, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nsnapshot PT:    %td", snapshot_pt);
+	  fprintf (stderr, "\nsnapshot BYTE:  %td", snapshot_byte);
+	  fprintf (stderr, "\nC result:       ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC post-PT:      %td", c_post_pt);
+	  fprintf (stderr, "\nC post-BYTE:    %td", c_post_byte);
+	  fprintf (stderr, "\nZig result:     ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig post-PT:    %td", zig_post_pt);
+	  fprintf (stderr, "\nZig post-BYTE:  %td", zig_post_byte);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+
+      return zig_result;
+    }
+  else
+    {
+      /* Normal mode: Zig implementation is live */
+      return zig_forward_line (n);
+    }
 }
 
 DEFUN ("beginning-of-line", Fbeginning_of_line, Sbeginning_of_line, 0, 1, "^p",
