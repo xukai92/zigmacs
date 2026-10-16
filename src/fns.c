@@ -55,6 +55,12 @@ extern Lisp_Object zig_memq (Lisp_Object elt, Lisp_Object list);
 /* Zig implementation of assq (third Cat-B port in Zigmacs) */
 extern Lisp_Object zig_assq (Lisp_Object key, Lisp_Object alist);
 
+/* Zig implementation of nth (Category B port, fanout round #2) */
+extern Lisp_Object zig_nth (Lisp_Object n, Lisp_Object list);
+
+/* Zig implementation of safe-length (Category B port, fanout round #2) */
+extern Lisp_Object zig_safe_length (Lisp_Object list);
+
 enum equal_kind { EQUAL_NO_QUIT, EQUAL_PLAIN, EQUAL_INCLUDING_PROPERTIES };
 static bool internal_equal (Lisp_Object, Lisp_Object,
 			    enum equal_kind, int, Lisp_Object);
@@ -212,6 +218,20 @@ efficient.  */)
   return zig_result;
 }
 
+/* Original C implementation of safe-length, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+safe_length_orig (Lisp_Object list)
+{
+  intptr_t len = 0;
+  FOR_EACH_TAIL_SAFE (list)
+    len++;
+  return make_fixnum (len);
+}
+
+/* Channel A dispatcher for safe-length.
+   Normal mode: returns zig_safe_length(list) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("safe-length", Fsafe_length, Ssafe_length, 1, 1, 0,
        doc: /* Return the length of a list, but avoid error or infinite loop.
 This function never gets an error.  If LIST is not really a list,
@@ -219,10 +239,37 @@ it returns 0.  If LIST is circular, it returns an integer that is at
 least the number of distinct elements.  */)
   (Lisp_Object list)
 {
-  intptr_t len = 0;
-  FOR_EACH_TAIL_SAFE (list)
-    len++;
-  return make_fixnum (len);
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_safe_length (list);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = safe_length_orig (list);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: safe-length ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (list, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 static inline
@@ -1897,12 +1944,55 @@ DEFUN ("nthcdr", Fnthcdr, Snthcdr, 2, 2, 0,
   return tail;
 }
 
+/* Original C implementation of nth, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+nth_orig (Lisp_Object n, Lisp_Object list)
+{
+  return Fcar (Fnthcdr (n, list));
+}
+
+/* Channel A dispatcher for nth.
+   Normal mode: returns zig_nth(n, list) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("nth", Fnth, Snth, 2, 2, 0,
        doc: /* Return the Nth element of LIST.
 N counts from zero.  If LIST is not that long, nil is returned.  */)
   (Lisp_Object n, Lisp_Object list)
 {
-  return Fcar (Fnthcdr (n, list));
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_nth (n, list);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = nth_orig (n, list);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: nth ***\n");
+	  fprintf (stderr, "Input n:    ");
+	  Fprin1 (n, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nInput list: ");
+	  Fprin1 (list, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 DEFUN ("elt", Felt, Selt, 2, 2, 0,
