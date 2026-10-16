@@ -2965,6 +2965,20 @@ This happens for interactive use with M-x.  */)
 }
 
 
+/* Zig port declaration (from src/zig/file-name-absolute-p.zig) */
+extern Lisp_Object zig_file_name_absolute_p (Lisp_Object filename);
+
+/* Original C implementation (preserved for A/B verification) */
+static Lisp_Object
+file_name_absolute_p_orig (Lisp_Object filename)
+{
+  CHECK_STRING (filename);
+  return file_name_absolute_p (SSDATA (filename)) ? Qt : Qnil;
+}
+
+/* Channel A dispatcher for file-name-absolute-p.
+   Normal mode: returns zig_file_name_absolute_p(filename) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("file-name-absolute-p", Ffile_name_absolute_p, Sfile_name_absolute_p,
        1, 1, 0,
        doc: /* Return t if FILENAME is an absolute file name.
@@ -2973,8 +2987,38 @@ file name can also start with an initial `~' or `~USER' component,
 where USER is a valid login name.  */)
   (Lisp_Object filename)
 {
-  CHECK_STRING (filename);
-  return file_name_absolute_p (SSDATA (filename)) ? Qt : Qnil;
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_file_name_absolute_p (filename);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = file_name_absolute_p_orig (filename);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: file-name-absolute-p ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (filename, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  /* Return Zig result (live implementation) */
+  return zig_result;
 }
 
 bool
