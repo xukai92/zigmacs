@@ -35,6 +35,8 @@ static int internal_self_insert (int, EMACS_INT);
 extern Lisp_Object zig_forward_char (Lisp_Object n);
 extern Lisp_Object zig_backward_char (Lisp_Object n);
 extern Lisp_Object zig_forward_line (Lisp_Object n);
+extern Lisp_Object zig_beginning_of_line (Lisp_Object n);
+extern Lisp_Object zig_end_of_line (Lisp_Object n);
 
 /* Add N to point; or subtract N if FORWARD is false.  N defaults to 1.
    Validate the new location.  Return nil.
@@ -353,6 +355,24 @@ go to its beginning.  */)
     }
 }
 
+/* Original C implementation of beginning-of-line (preserved for Channel A verification).
+   Move point to beginning of current line (in the logical order). */
+static Lisp_Object
+beginning_of_line_orig (Lisp_Object n)
+{
+  if (NILP (n))
+    XSETFASTINT (n, 1);
+  else
+    CHECK_FIXNUM (n);
+
+  SET_PT (XFIXNUM (Fline_beginning_position (n)));
+
+  return Qnil;
+}
+
+/* Channel A dispatcher for beginning-of-line.
+   Normal mode: runs zig_beginning_of_line(n) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): uses snapshot→replay to compare Zig vs C. */
 DEFUN ("beginning-of-line", Fbeginning_of_line, Sbeginning_of_line, 0, 1, "^p",
        doc: /* Move point to beginning of current line (in the logical order).
 With argument N not nil or 1, move forward N - 1 lines first.
@@ -367,28 +387,71 @@ instead.  For instance, `(forward-line 0)' does the same thing as
 `(beginning-of-line)', except that it ignores field boundaries.  */)
   (Lisp_Object n)
 {
-  if (NILP (n))
-    XSETFASTINT (n, 1);
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  if (ab_mode)
+    {
+      /* A/B verification with snapshot→replay for stateful primitive.
+         Touched state: POINT (PT and PT_BYTE). */
+
+      /* SNAPSHOT: save current point */
+      ptrdiff_t snapshot_pt = PT;
+      ptrdiff_t snapshot_byte = PT_BYTE;
+
+      /* Run original C implementation */
+      Lisp_Object c_result = beginning_of_line_orig (n);
+      ptrdiff_t c_post_pt = PT;
+      ptrdiff_t c_post_byte = PT_BYTE;
+
+      /* RESTORE: rewind point to snapshot */
+      SET_PT_BOTH (snapshot_pt, snapshot_byte);
+
+      /* Run Zig implementation */
+      Lisp_Object zig_result = zig_beginning_of_line (n);
+      ptrdiff_t zig_post_pt = PT;
+      ptrdiff_t zig_post_byte = PT_BYTE;
+
+      /* Compare: both return value AND post-state must match */
+      if (!EQ (zig_result, c_result) || c_post_pt != zig_post_pt || c_post_byte != zig_post_byte)
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: beginning-of-line ***\n");
+	  fprintf (stderr, "n:              ");
+	  Fprin1 (n, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nsnapshot PT:    %td", snapshot_pt);
+	  fprintf (stderr, "\nsnapshot BYTE:  %td", snapshot_byte);
+	  fprintf (stderr, "\nC result:       ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC post-PT:      %td", c_post_pt);
+	  fprintf (stderr, "\nC post-BYTE:    %td", c_post_byte);
+	  fprintf (stderr, "\nZig result:     ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig post-PT:    %td", zig_post_pt);
+	  fprintf (stderr, "\nZig post-BYTE:  %td", zig_post_byte);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+
+      return zig_result;
+    }
   else
-    CHECK_FIXNUM (n);
-
-  SET_PT (XFIXNUM (Fline_beginning_position (n)));
-
-  return Qnil;
+    {
+      /* Normal mode: Zig implementation is live */
+      return zig_beginning_of_line (n);
+    }
 }
 
-DEFUN ("end-of-line", Fend_of_line, Send_of_line, 0, 1, "^p",
-       doc: /* Move point to end of current line (in the logical order).
-With argument N not nil or 1, move forward N - 1 lines first.
-If point reaches the beginning or end of buffer, it stops there.
-To ignore intangibility, bind `inhibit-point-motion-hooks' to t.
-
-This function constrains point to the current field unless this moves
-point to a different line from the original, unconstrained result.  If
-N is nil or 1, and a rear-sticky field ends at point, the point does
-not move.  To ignore field boundaries bind `inhibit-field-text-motion'
-to t.  */)
-  (Lisp_Object n)
+/* Original C implementation of end-of-line (preserved for Channel A verification).
+   Move point to end of current line (in the logical order). */
+static Lisp_Object
+end_of_line_orig (Lisp_Object n)
 {
   ptrdiff_t newpos;
 
@@ -424,6 +487,83 @@ to t.  */)
     }
 
   return Qnil;
+}
+
+/* Channel A dispatcher for end-of-line.
+   Normal mode: runs zig_end_of_line(n) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): uses snapshot→replay to compare Zig vs C. */
+DEFUN ("end-of-line", Fend_of_line, Send_of_line, 0, 1, "^p",
+       doc: /* Move point to end of current line (in the logical order).
+With argument N not nil or 1, move forward N - 1 lines first.
+If point reaches the beginning or end of buffer, it stops there.
+To ignore intangibility, bind `inhibit-point-motion-hooks' to t.
+
+This function constrains point to the current field unless this moves
+point to a different line from the original, unconstrained result.  If
+N is nil or 1, and a rear-sticky field ends at point, the point does
+not move.  To ignore field boundaries bind `inhibit-field-text-motion'
+to t.  */)
+  (Lisp_Object n)
+{
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  if (ab_mode)
+    {
+      /* A/B verification with snapshot→replay for stateful primitive.
+         Touched state: POINT (PT and PT_BYTE). */
+
+      /* SNAPSHOT: save current point */
+      ptrdiff_t snapshot_pt = PT;
+      ptrdiff_t snapshot_byte = PT_BYTE;
+
+      /* Run original C implementation */
+      Lisp_Object c_result = end_of_line_orig (n);
+      ptrdiff_t c_post_pt = PT;
+      ptrdiff_t c_post_byte = PT_BYTE;
+
+      /* RESTORE: rewind point to snapshot */
+      SET_PT_BOTH (snapshot_pt, snapshot_byte);
+
+      /* Run Zig implementation */
+      Lisp_Object zig_result = zig_end_of_line (n);
+      ptrdiff_t zig_post_pt = PT;
+      ptrdiff_t zig_post_byte = PT_BYTE;
+
+      /* Compare: both return value AND post-state must match */
+      if (!EQ (zig_result, c_result) || c_post_pt != zig_post_pt || c_post_byte != zig_post_byte)
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: end-of-line ***\n");
+	  fprintf (stderr, "n:              ");
+	  Fprin1 (n, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nsnapshot PT:    %td", snapshot_pt);
+	  fprintf (stderr, "\nsnapshot BYTE:  %td", snapshot_byte);
+	  fprintf (stderr, "\nC result:       ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC post-PT:      %td", c_post_pt);
+	  fprintf (stderr, "\nC post-BYTE:    %td", c_post_byte);
+	  fprintf (stderr, "\nZig result:     ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig post-PT:    %td", zig_post_pt);
+	  fprintf (stderr, "\nZig post-BYTE:  %td", zig_post_byte);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+
+      return zig_result;
+    }
+  else
+    {
+      /* Normal mode: Zig implementation is live */
+      return zig_end_of_line (n);
+    }
 }
 
 DEFUN ("delete-char", Fdelete_char, Sdelete_char, 1, 2, "p\nP",
