@@ -82,6 +82,9 @@ int frame_default_tool_bar_height;
 static void gui_report_frame_params (struct frame *, Lisp_Object *);
 #endif
 
+/* Zig port declaration (from src/zig/frame_live_p.zig) */
+extern Lisp_Object zig_frame_live_p (Lisp_Object object);
+
 /* These setters are used only in this file, so they can be private.  */
 static void
 fset_buffer_predicate (struct frame *f, Lisp_Object val)
@@ -258,6 +261,19 @@ See also `frame-live-p'.  */)
     }
 }
 
+/* Original C implementation (preserved for A/B verification) */
+static Lisp_Object
+frame_live_p_orig (Lisp_Object object)
+{
+  return ((FRAMEP (object)
+	   && FRAME_LIVE_P (XFRAME (object)))
+	  ? Fframep (object)
+	  : Qnil);
+}
+
+/* Channel A dispatcher for frame-live-p.
+   Normal mode: returns zig_frame_live_p(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("frame-live-p", Fframe_live_p, Sframe_live_p, 1, 1, 0,
        doc: /* Return non-nil if OBJECT is a frame which has not been deleted.
 Value is nil if OBJECT is not a live frame.  If object is a live
@@ -266,10 +282,38 @@ displayed on.  See the documentation of `framep' for possible
 return values.  */)
   (Lisp_Object object)
 {
-  return ((FRAMEP (object)
-	   && FRAME_LIVE_P (XFRAME (object)))
-	  ? Fframep (object)
-	  : Qnil);
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_frame_live_p (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = frame_live_p_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: frame-live-p ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  /* Return Zig result (live implementation) */
+  return zig_result;
 }
 
 DEFUN ("window-system", Fwindow_system, Swindow_system, 0, 1, 0,
