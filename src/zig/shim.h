@@ -36,4 +36,7 @@ extern bool zig_SYMBOLP (Lisp_Object obj);
 extern bool zig_STRINGP (Lisp_Object obj);
 extern Lisp_Object zig_build_string (const char *str);
 
+/* Vector operations */
+extern bool zig_VECTORP (Lisp_Object obj);
+
 #endif /* ZIG_SHIM_H */

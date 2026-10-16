@@ -132,3 +132,11 @@ zig_build_string (const char *str)
 {
   return build_string (str);
 }
+
+/* === Vector operations === */
+
+bool
+zig_VECTORP (Lisp_Object obj)
+{
+  return VECTORP (obj);
+}
