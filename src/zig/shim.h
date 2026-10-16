@@ -1,4 +1,8 @@
-/* C shim layer prototypes for Zig ports */
+/* C shim layer prototypes for Zig ports
+
+   CORE SHIM — orchestrator-owned. Port agents use these read-only;
+   if a wrapper is missing, REPORT it for addition here — do NOT edit
+   this file in parallel worktrees (it would create merge conflicts). */
 
 #ifndef ZIG_SHIM_H
 #define ZIG_SHIM_H
@@ -85,5 +89,32 @@ extern bool zig_PROCESSP (Lisp_Object obj);
 extern int zig_CODING_SYSTEM_ID (Lisp_Object obj);
 extern Lisp_Object zig_Fget (Lisp_Object symbol, Lisp_Object propname);
 extern Lisp_Object zig_Qcoding_system_define_form (void);
+
+/* Additional type predicates */
+extern bool zig_ARRAYP (Lisp_Object obj);
+extern bool zig_HASH_TABLE_P (Lisp_Object obj);
+extern bool zig_MARKERP (Lisp_Object obj);
+extern bool zig_BUFFERP (Lisp_Object obj);
+extern bool zig_WINDOWP (Lisp_Object obj);
+extern bool zig_FRAMEP (Lisp_Object obj);
+extern bool zig_OVERLAYP (Lisp_Object obj);
+extern bool zig_SUBRP (Lisp_Object obj);
+extern bool zig_VECTORLIKEP (Lisp_Object obj);
+
+/* Additional accessors */
+extern ptrdiff_t zig_SBYTES (Lisp_Object string);
+extern unsigned char zig_SREF (Lisp_Object string, ptrdiff_t index);
+extern unsigned char *zig_SDATA (Lisp_Object string);
+extern Lisp_Object zig_AREF (Lisp_Object array, ptrdiff_t idx);
+extern double zig_XFLOAT_DATA (Lisp_Object f);
+
+/* Buffer and point accessors (Category C ports) */
+extern ptrdiff_t zig_PT (void);
+extern ptrdiff_t zig_PT_BYTE (void);
+extern ptrdiff_t zig_BEGV (void);
+extern ptrdiff_t zig_ZV (void);
+extern ptrdiff_t zig_ZV_BYTE (void);
+extern void zig_SET_PT (ptrdiff_t position);
+extern struct buffer *zig_current_buffer (void);
 
 #endif /* ZIG_SHIM_H */

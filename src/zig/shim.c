@@ -1,6 +1,10 @@
 /* C shim layer for Zig ports
    Exposes Emacs macro/inline/GMP API as linkable functions for Zig extern calls.
 
+   CORE SHIM — orchestrator-owned. Port agents use these read-only;
+   if a wrapper is missing, REPORT it for addition here — do NOT edit
+   this file in parallel worktrees (it would create merge conflicts).
+
    This is the SHARED shim for all Zig ports. Each wrapper follows the pattern:
    - Prefix: zig_
    - Name: matches the original macro/inline name
@@ -15,6 +19,8 @@
 #include "character.h"
 #include "process.h"
 #include "coding.h"
+#include "buffer.h"
+#include "window.h"
 #include "zig/shim.h"
 
 /* === Fixnum operations (inline/macro in lisp.h) === */
@@ -313,4 +319,136 @@ Lisp_Object
 zig_Qcoding_system_define_form (void)
 {
   return Qcoding_system_define_form;
+}
+
+/* === Additional type predicates === */
+
+bool
+zig_ARRAYP (Lisp_Object obj)
+{
+  return ARRAYP (obj);
+}
+
+bool
+zig_HASH_TABLE_P (Lisp_Object obj)
+{
+  return HASH_TABLE_P (obj);
+}
+
+bool
+zig_MARKERP (Lisp_Object obj)
+{
+  return MARKERP (obj);
+}
+
+bool
+zig_BUFFERP (Lisp_Object obj)
+{
+  return BUFFERP (obj);
+}
+
+bool
+zig_WINDOWP (Lisp_Object obj)
+{
+  return WINDOWP (obj);
+}
+
+bool
+zig_FRAMEP (Lisp_Object obj)
+{
+  return FRAMEP (obj);
+}
+
+bool
+zig_OVERLAYP (Lisp_Object obj)
+{
+  return OVERLAYP (obj);
+}
+
+bool
+zig_SUBRP (Lisp_Object obj)
+{
+  return SUBRP (obj);
+}
+
+bool
+zig_VECTORLIKEP (Lisp_Object obj)
+{
+  return VECTORLIKEP (obj);
+}
+
+/* === Additional accessors === */
+
+ptrdiff_t
+zig_SBYTES (Lisp_Object string)
+{
+  return SBYTES (string);
+}
+
+unsigned char
+zig_SREF (Lisp_Object string, ptrdiff_t index)
+{
+  return SREF (string, index);
+}
+
+unsigned char *
+zig_SDATA (Lisp_Object string)
+{
+  return SDATA (string);
+}
+
+Lisp_Object
+zig_AREF (Lisp_Object array, ptrdiff_t idx)
+{
+  return AREF (array, idx);
+}
+
+double
+zig_XFLOAT_DATA (Lisp_Object f)
+{
+  return XFLOAT_DATA (f);
+}
+
+/* === Buffer and point accessors (Category C ports) === */
+
+ptrdiff_t
+zig_PT (void)
+{
+  return PT;
+}
+
+ptrdiff_t
+zig_PT_BYTE (void)
+{
+  return PT_BYTE;
+}
+
+ptrdiff_t
+zig_BEGV (void)
+{
+  return BEGV;
+}
+
+ptrdiff_t
+zig_ZV (void)
+{
+  return ZV;
+}
+
+ptrdiff_t
+zig_ZV_BYTE (void)
+{
+  return ZV_BYTE;
+}
+
+void
+zig_SET_PT (ptrdiff_t position)
+{
+  SET_PT (position);
+}
+
+struct buffer *
+zig_current_buffer (void)
+{
+  return current_buffer;
 }
