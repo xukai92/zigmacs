@@ -429,13 +429,12 @@ use the standard functions without calling themselves recursively.  */)
   return result;
 }
 
-DEFUN ("file-name-directory", Ffile_name_directory, Sfile_name_directory,
-       1, 1, 0,
-       doc: /* Return the directory component in file name FILENAME.
-Return nil if FILENAME does not include a directory.
-Otherwise return a directory name.
-Given a Unix syntax file name, returns a string ending in slash.  */)
-  (Lisp_Object filename)
+/* Zig port declaration (from src/zig/file_name_directory.zig) */
+extern Lisp_Object zig_Ffile_name_directory (Lisp_Object filename);
+
+/* Original C implementation (preserved for A/B verification) */
+static Lisp_Object
+file_name_directory_orig (Lisp_Object filename)
 {
   Lisp_Object handler;
 
@@ -452,6 +451,52 @@ Given a Unix syntax file name, returns a string ending in slash.  */)
     }
 
   return file_name_directory (filename);
+}
+
+/* Channel A dispatcher for file-name-directory.
+   Normal mode: returns zig_Ffile_name_directory(filename) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
+DEFUN ("file-name-directory", Ffile_name_directory, Sfile_name_directory,
+       1, 1, 0,
+       doc: /* Return the directory component in file name FILENAME.
+Return nil if FILENAME does not include a directory.
+Otherwise return a directory name.
+Given a Unix syntax file name, returns a string ending in slash.  */)
+  (Lisp_Object filename)
+{
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_Ffile_name_directory (filename);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = file_name_directory_orig (filename);
+      /* Use Fequal for content comparison (file_name_directory returns fresh object) */
+      if (NILP (Fequal (zig_result, c_result)))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: file-name-directory ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (filename, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  /* Return Zig result (live implementation) */
+  return zig_result;
 }
 
 /* Return the directory component of FILENAME, or nil if FILENAME does
