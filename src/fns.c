@@ -44,6 +44,17 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "treesit.h"
 #endif
 
+/* === Zig port extern declarations === */
+
+/* Zig implementation of length (first Cat-B port in Zigmacs) */
+extern Lisp_Object zig_length (Lisp_Object sequence);
+
+/* Zig implementation of memq (second Cat-B port in Zigmacs) */
+extern Lisp_Object zig_memq (Lisp_Object elt, Lisp_Object list);
+
+/* Zig implementation of assq (third Cat-B port in Zigmacs) */
+extern Lisp_Object zig_assq (Lisp_Object key, Lisp_Object alist);
+
 enum equal_kind { EQUAL_NO_QUIT, EQUAL_PLAIN, EQUAL_INCLUDING_PROPERTIES };
 static bool internal_equal (Lisp_Object, Lisp_Object,
 			    enum equal_kind, int, Lisp_Object);
@@ -125,18 +136,10 @@ list_length (Lisp_Object list)
 }
 
 
-DEFUN ("length", Flength, Slength, 1, 1, 0,
-       doc: /* Return the length of vector, list or string SEQUENCE.
-A byte-code function object is also allowed.
-
-If the string contains multibyte characters, this is not necessarily
-the number of bytes in the string; it is the number of characters.
-To get the number of bytes, use `string-bytes'.
-
-If the length of a list is being computed to compare to a (small)
-number, the `length<', `length>' and `length=' functions may be more
-efficient.  */)
-  (Lisp_Object sequence)
+/* Original C implementation of length, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+length_orig (Lisp_Object sequence)
 {
   EMACS_INT val;
 
@@ -158,6 +161,55 @@ efficient.  */)
     wrong_type_argument (Qsequencep, sequence);
 
   return make_fixnum (val);
+}
+
+/* Channel A dispatcher for length.
+   Normal mode: returns zig_length(sequence) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
+DEFUN ("length", Flength, Slength, 1, 1, 0,
+       doc: /* Return the length of vector, list or string SEQUENCE.
+A byte-code function object is also allowed.
+
+If the string contains multibyte characters, this is not necessarily
+the number of bytes in the string; it is the number of characters.
+To get the number of bytes, use `string-bytes'.
+
+If the length of a list is being computed to compare to a (small)
+number, the `length<', `length>' and `length=' functions may be more
+efficient.  */)
+  (Lisp_Object sequence)
+{
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_length (sequence);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = length_orig (sequence);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: length ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (sequence, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 DEFUN ("safe-length", Fsafe_length, Ssafe_length, 1, 1, 0,
@@ -1911,10 +1963,10 @@ The value is actually the tail of LIST whose car is ELT.  */)
   return Qnil;
 }
 
-DEFUN ("memq", Fmemq, Smemq, 2, 2, 0,
-       doc: /* Return non-nil if ELT is an element of LIST.  Comparison done with `eq'.
-The value is actually the tail of LIST whose car is ELT.  */)
-  (Lisp_Object elt, Lisp_Object list)
+/* Original C implementation of memq, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+memq_orig (Lisp_Object elt, Lisp_Object list)
 {
   Lisp_Object tail = list;
   FOR_EACH_TAIL (tail)
@@ -1922,6 +1974,49 @@ The value is actually the tail of LIST whose car is ELT.  */)
       return tail;
   CHECK_LIST_END (tail, list);
   return Qnil;
+}
+
+/* Channel A dispatcher for memq.
+   Normal mode: returns zig_memq(elt, list) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
+DEFUN ("memq", Fmemq, Smemq, 2, 2, 0,
+       doc: /* Return non-nil if ELT is an element of LIST.  Comparison done with `eq'.
+The value is actually the tail of LIST whose car is ELT.  */)
+  (Lisp_Object elt, Lisp_Object list)
+{
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_memq (elt, list);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = memq_orig (elt, list);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: memq ***\n");
+	  fprintf (stderr, "elt:        ");
+	  Fprin1 (elt, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nlist:       ");
+	  Fprin1 (list, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 DEFUN ("memql", Fmemql, Smemql, 2, 2, 0,
@@ -1957,11 +2052,10 @@ The value is actually the tail of LIST whose car is ELT.  */)
   return Qnil;
 }
 
-DEFUN ("assq", Fassq, Sassq, 2, 2, 0,
-       doc: /* Return non-nil if KEY is `eq' to the car of an element of ALIST.
-The value is actually the first element of ALIST whose car is KEY.
-Elements of ALIST that are not conses are ignored.  */)
-  (Lisp_Object key, Lisp_Object alist)
+/* Original C implementation of assq, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+assq_orig (Lisp_Object key, Lisp_Object alist)
 {
   Lisp_Object tail = alist;
   FOR_EACH_TAIL (tail)
@@ -1969,6 +2063,50 @@ Elements of ALIST that are not conses are ignored.  */)
       return XCAR (tail);
   CHECK_LIST_END (tail, alist);
   return Qnil;
+}
+
+/* Channel A dispatcher for assq.
+   Normal mode: returns zig_assq(key, alist) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
+DEFUN ("assq", Fassq, Sassq, 2, 2, 0,
+       doc: /* Return non-nil if KEY is `eq' to the car of an element of ALIST.
+The value is actually the first element of ALIST whose car is KEY.
+Elements of ALIST that are not conses are ignored.  */)
+  (Lisp_Object key, Lisp_Object alist)
+{
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_assq (key, alist);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = assq_orig (key, alist);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: assq ***\n");
+	  fprintf (stderr, "key:        ");
+	  Fprin1 (key, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nalist:      ");
+	  Fprin1 (alist, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 /* Like Fassq but never report an error and do not allow quits.
