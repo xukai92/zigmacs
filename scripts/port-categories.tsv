@@ -1,0 +1,63 @@
+# Zigmacs port classification map — single source of truth for category assignment.
+# Format: <lisp-name>\t<category>   (category: A B C D E F G H X)
+# Categories (see PORT_CATEGORIES.md): A=pure type predicate/const, B=pure computational,
+# C=stateful (mutates point/buffer/globals), D=interpreter/reader, E=buffer/text engine,
+# F=GC, G=redisplay/term/windows, H=I/O/process/coding/compat, X=GUI (out of scope).
+#
+# This file is consumed by scripts/port-progress.py to compute per-category DONE counts.
+# A ported DEFUN missing from this file is reported as "unclassified port" (add a line).
+# Classifying UN-ported DEFUNs here too (over time) turns the per-category TOTAL estimates
+# into exact, auditable counts. Lines starting with # are comments.
+#
+# --- Cat A: pure type predicates / const (ported) ---
+natnump	A
+nlistp	A
+numberp	A
+integerp	A
+floatp	A
+symbolp	A
+stringp	A
+consp	A
+vectorp	A
+listp	A
+bare-symbol-p	A
+char-or-string-p	A
+atom	A
+arrayp	A
+recordp	A
+bool-vector-p	A
+sequencep	A
+functionp	A
+char-table-p	A
+markerp	A
+bufferp	A
+# --- Cat B: pure computational (ported) ---
+length	B
+memq	B
+assq	B
+car-safe	B
+cdr-safe	B
+nth	B
+safe-length	B
+elt	B
+proper-list-p	B
+rassq	B
+# --- Cat C: stateful / mutating (ported) ---
+goto-char	C
+bobp	C
+eobp	C
+bolp	C
+eolp	C
+forward-char	C
+backward-char	C
+forward-line	C
+# --- Cat H: I/O / process / coding / compat (ported) ---
+processp	H
+file-name-absolute-p	H
+coding-system-p	H
+buffer-live-p	H
+keymapp	H
+window-live-p	H
+frame-live-p	H
+window-valid-p	H
+file-name-nondirectory	H
