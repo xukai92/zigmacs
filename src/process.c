@@ -1000,11 +1000,55 @@ free_dns_request (Lisp_Object proc)
 #endif
 
 
+/* Zig port declaration (from src/zig/processp.zig) */
+extern Lisp_Object zig_processp (Lisp_Object object);
+
+/* Original C implementation (preserved for A/B verification) */
+static Lisp_Object
+processp_orig (Lisp_Object object)
+{
+  return PROCESSP (object) ? Qt : Qnil;
+}
+
+/* Channel A dispatcher for processp.
+   Normal mode: returns zig_processp(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("processp", Fprocessp, Sprocessp, 1, 1, 0,
        doc: /* Return t if OBJECT is a process.  */)
   (Lisp_Object object)
 {
-  return PROCESSP (object) ? Qt : Qnil;
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_processp (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = processp_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: processp ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  /* Return Zig result (live implementation) */
+  return zig_result;
 }
 
 DEFUN ("get-process", Fget_process, Sget_process, 1, 1, 0,
