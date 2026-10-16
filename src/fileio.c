@@ -532,13 +532,12 @@ file_name_directory (Lisp_Object filename)
 #endif	/* DOS_NT */
 }
 
-DEFUN ("file-name-nondirectory", Ffile_name_nondirectory,
-       Sfile_name_nondirectory, 1, 1, 0,
-       doc: /* Return file name FILENAME sans its directory.
-For example, in a Unix-syntax file name,
-this is everything after the last slash,
-or the entire name if it contains no slash.  */)
-  (Lisp_Object filename)
+/* Zig port declaration (from src/zig/file_name_nondirectory.zig) */
+extern Lisp_Object zig_file_name_nondirectory (Lisp_Object filename);
+
+/* Original C implementation (preserved for A/B verification) */
+static Lisp_Object
+file_name_nondirectory_orig (Lisp_Object filename)
 {
   register const char *beg, *p, *end;
   Lisp_Object handler;
@@ -571,6 +570,52 @@ or the entire name if it contains no slash.  */)
     p--;
 
   return make_specified_string (p, -1, end - p, STRING_MULTIBYTE (filename));
+}
+
+/* Channel A dispatcher for file-name-nondirectory.
+   Normal mode: returns zig_file_name_nondirectory(filename) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
+DEFUN ("file-name-nondirectory", Ffile_name_nondirectory,
+       Sfile_name_nondirectory, 1, 1, 0,
+       doc: /* Return file name FILENAME sans its directory.
+For example, in a Unix-syntax file name,
+this is everything after the last slash,
+or the entire name if it contains no slash.  */)
+  (Lisp_Object filename)
+{
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_file_name_nondirectory (filename);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = file_name_nondirectory_orig (filename);
+      /* Use equal for string comparison (EQ compares identity, not content) */
+      if (NILP (Fequal (zig_result, c_result)))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: file-name-nondirectory ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (filename, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  /* Return Zig result (live implementation) */
+  return zig_result;
 }
 
 DEFUN ("unhandled-file-name-directory", Funhandled_file_name_directory,

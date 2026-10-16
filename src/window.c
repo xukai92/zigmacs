@@ -317,13 +317,57 @@ DEFUN ("windowp", Fwindowp, Swindowp, 1, 1, 0,
   return WINDOWP (object) ? Qt : Qnil;
 }
 
+/* Zig port declaration (from src/zig/window_valid_p.zig) */
+extern Lisp_Object zig_window_valid_p (Lisp_Object object);
+
+/* Original C implementation (preserved for A/B verification) */
+static Lisp_Object
+window_valid_p_orig (Lisp_Object object)
+{
+  return WINDOW_VALID_P (object) ? Qt : Qnil;
+}
+
+/* Channel A dispatcher for window-valid-p.
+   Normal mode: returns zig_window_valid_p(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("window-valid-p", Fwindow_valid_p, Swindow_valid_p, 1, 1, 0,
        doc: /* Return t if OBJECT is a valid window and nil otherwise.
 A valid window is either a window that displays a buffer or an internal
 window.  Windows that have been deleted are not valid.  */)
   (Lisp_Object object)
 {
-  return WINDOW_VALID_P (object) ? Qt : Qnil;
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_window_valid_p (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = window_valid_p_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: window-valid-p ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  /* Return Zig result (live implementation) */
+  return zig_result;
 }
 
 
