@@ -121,6 +121,12 @@ zig_SYMBOLP (Lisp_Object obj)
 
 /* === String operations === */
 
+bool
+zig_STRINGP (Lisp_Object obj)
+{
+  return STRINGP (obj);
+}
+
 Lisp_Object
 zig_build_string (const char *str)
 {

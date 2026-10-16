@@ -33,6 +33,7 @@ extern Lisp_Object zig_XCDR (Lisp_Object cons);
 extern bool zig_SYMBOLP (Lisp_Object obj);
 
 /* String operations */
+extern bool zig_STRINGP (Lisp_Object obj);
 extern Lisp_Object zig_build_string (const char *str);
 
 #endif /* ZIG_SHIM_H */
