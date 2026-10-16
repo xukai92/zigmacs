@@ -15,7 +15,7 @@
 | **Golden oracle** | `oracle/emacs-gcc` — gcc build of the exact vendored source (`scripts/build-oracle.sh`) |
 | **Repo** | `github.com/xukai92/zigmacs` |
 | **Fidelity gates** | per-PR: build + `make check` (allowlist gate, 25-min timeout); nightly: full byte-identical + ERT results-equality vs oracle |
-| **Last updated** | 2026-10-16 — HEAD `9004569` |
+| **Last updated** | 2026-10-16 — 19 ports landed (Cat A 13, B 3, H₁ 3); parallel fan-out trial done |
 
 ## Progress by category
 
@@ -23,14 +23,14 @@ Surface ≈ **1,790 DEFUN primitives** total (~1,300 relevant to the nox build; 
 
 | Cat | What | Unit | Done / Total | Difficulty | Phase |
 |---|---|---|---|---|---|
-| **A** | Pure type predicates / `const` primitives | DEFUN | **10 / 25** | ★ trivial | 1 |
-| **B** | Pure computational primitives (arith, list/seq/string builders) | DEFUN | 0 / ~230 *(est)* | ★★ easy-med | 1 |
+| **A** | Pure type predicates / `const` primitives | DEFUN | **13 / 25** | ★ trivial | 1 |
+| **B** | Pure computational primitives (arith, list/seq/string builders) | DEFUN | **3 / ~230** *(est)* | ★★ easy-med | 1 |
 | **C** | Stateful primitives (mutate buffer/point/match-data/globals) | DEFUN | 0 / ~260 *(est)* | ★★★ med | 1 |
 | **D** | Interpreter & reader core (`eval`, `bytecode` VM, `lread`) | subsystem | 0 / ~75 DEFUN + 3 engines | ★★★★ hard | 1–2 |
 | **E** | Buffer/text engine & search (`buffer`,`editfns`,`textprop`,`marker`,`insdel`,`search`,`regex`; ~21K LOC) | subsystem | 0 | ★★★★ hard | 2 |
 | **F** | Garbage collector (`alloc.c`, 8.4K LOC) | subsystem | 0 | ★★★★★ very hard | 2 |
 | **G** | Redisplay/terminal/windows (`xdisp` 38.6K, `dispnew`, `term`, `window`, `frame`; ~56K LOC) | subsystem | 0 | ★★★★★ hardest | 2+ |
-| **H** | I/O · process · event-loop · coding · tree-sitter · module/native-comp compat | DEFUN+ | 0 / ~280 *(est)* | ★★★ med-hard | 1–3 |
+| **H** | I/O · process · event-loop · coding · tree-sitter · module/native-comp compat | DEFUN+ | **3 / ~280** *(est; H₁ slice)* | ★★★ med-hard | 1–3 |
 | **X** | GUI window-system backends (`xfns`/`pgtk`/`w32`/`ns`/`android`/`haiku`) | — | out of scope (nox) | — | — |
 
 *`~` = estimate from per-file DEFUN counts; replace with exact classification when done.*
@@ -45,8 +45,15 @@ Surface ≈ **1,790 DEFUN primitives** total (~1,300 relevant to the nox build; 
 5. Tests: `test/src/<name>-channel-a-tests.el` + `test/fidelity/corpus/NN-<name>.el`.
 6. **Clean-build check** (`make -C src clean && make`) BEFORE push; then CI green (gate `Real failures: 0`).
 
-### Cat B — Pure computational primitives — _how-to TBD (write after sampling)_
-_Pure but real logic (loops, allocation). Channel A = value compare + property/fuzz over generated inputs. No state → no snapshot needed._
+### Cat B — Pure computational primitives ✅ recipe proven (`length`, `memq`, `assq`)
+Same Channel A dispatcher as A (dispatchers live in the fn's file, e.g. `fns.c`), but:
+1. **Error-signal fidelity is the crux.** Reproduce the EXACT signal bug-for-bug (`length`/`memq`/`assq` signal `wrong-type-argument`/`circular-list` on improper/circular input). Don't just match the happy path.
+2. **Delegate hairy C to a shim helper, don't reimplement in Zig.** For `FOR_EACH_TAIL` + `CHECK_LIST_END` (tortoise/hare cycle detection), write a small C helper (`zig_memq_helper`, `zig_assq_helper`) and call it from Zig — keeps the port exact and simple. Allocation (`Fcons`) is a plain extern call.
+3. **More accessors** than A: `XCAR`/`XCDR`/`CONSP`/`ASIZE`/`SCHARS`/`PVSIZE`/`EQ`/`BASE_EQ` shims.
+4. **Tests are property/fuzz batteries** (~10–20 edge cases): empty, single, long, dotted, **circular**, strings (ASCII+multibyte), vectors, bool-vectors, char-tables, wrong types, `eq`-vs-`equal` semantics.
+
+### Cat C — Stateful primitives — _how-to TBD (needs the snapshot→replay tool first)_
+_Mutate buffers/globals/match-data. Channel A needs **snapshot→replay**: run `*_orig` and the Zig port on independent clones of the touched state, compare BOTH return values AND resulting state. Build this tool before sampling C._
 
 ### Cat C — Stateful primitives — _how-to TBD (write after sampling)_
 _Mutate buffers/globals/match-data. Channel A needs **snapshot→replay**: run `*_orig` and the Zig port on independent clones of the touched state, compare BOTH return values AND resulting state. This machinery is the key new infra before scaling C._
@@ -54,7 +61,10 @@ _Mutate buffers/globals/match-data. Channel A needs **snapshot→replay**: run `
 ### Cat D–G — Interpreter / buffer engine / GC / redisplay — _strategy, not per-function recipe_
 _These are whole-subsystem rewrites (Phase 2), NOT fan-out-able as independent small ports. How-to will be a design/sequencing doc per ARCH.md §5, §7._
 
-### Cat H — I/O / process / compat — _how-to TBD (write after sampling)_
+### Cat H — I/O · process · coding · compat ✅ H₁ recipe proven (`processp`, `file-name-absolute-p`, `coding-system-p`)
+Spans many files (`process.c`/`fileio.c`/`coding.c`/…); splits into two sub-tiers:
+- **H₁ (pure / low-OS)** — predicates (`processp`) port like Cat A; string/path logic (`file-name-absolute-p`) and multi-condition predicates (`coding-system-p`, which even calls Lisp `Fget` via a shim) port like Cat B. Shim per subsystem (`PROCESSP`, `SSDATA`, `CHECK_STRING`, `CODING_SYSTEM_ID`…) + subsystem headers. **Fan-out-able.**
+- **H₂ (effectful)** — real file I/O, process spawn, network, global-state mutation. Test: *"touches the OS or mutates state beyond allocation?"* → H₂. Needs **Cat-C-style effect verification** (snapshot / subprocess A/B with output capture), not in-process assertion. NOT in the current fan-out.
 
 ## Dependency graph & port ordering
 
@@ -95,9 +105,16 @@ Post-v0 gate:    doomemacs/modules → emacs-module ABI (H) + display parity (G)
 ## Ported log
 See `PORTING.md` for the per-function table. Cat A done: `natnump`, `nlistp`, `numberp`, `integerp`, `floatp`, `symbolp`, `stringp`, `consp`, `vectorp`, `listp`.
 
-## Before parallel fan-out (prerequisites)
-Parallel agents currently conflict on shared files (`data.c`, `Makefile.in`, `shim.c`, `lisp.h`, `PORTING.md`). Before fanning out:
-- Make the Makefile obj-list **auto-glob** Zig ports (no shared line to edit per port).
-- Make the shim **append-safe / modular** (per-category), pre-seed common accessors.
-- Use **isolated git worktrees** per agent + a **serialized integration/merge** step (build + gate one at a time).
-- Note: Cat D–G are subsystem rewrites — not part of the per-function fan-out.
+## Parallel fan-out — trial results (2026-10-16) & procedure
+A 3-agent parallel trial (A/B/H₁, 3 ports each = 9) ran successfully. **What worked:**
+- Native worktree-isolation isn't available here → use **manual `git worktree add`** (one branch per agent).
+- **Auto-glob Makefile** (ports = `src/zig/*.zig`) → zero shared-Makefile edits → zero conflicts. ✓
+- **Agents don't touch trackers** (orchestrator updates them at integration) → zero tracker conflicts. ✓
+- Ports live in distinct files (A→`data.c`, B→`fns.c`, H→`process/fileio/coding.c`) + new `.zig`/test files → no cross-category conflict. ✓
+- **The ONLY merge seam is the shared `src/zig/shim.{c,h}`.**
+
+**What bit us:** a `merge=union` driver on `shim.c` is line-based, not syntax-aware — it dropped closing braces and nested the defs (build failed; fixed by hand). **Never union-merge C.** Fix: (a) manual union at integration, or better (b) **split the shim per category** (`shim-A.c`, …) or one-wrapper-per-port file so there's no shared shim to merge.
+
+**Procedure (serialized integration):** manual worktrees → agents port + Channel-A-verify in-worktree (oracle isn't present there) → orchestrator: merge branches → rebuild/union the shim → clean build → **Channel B differential + `make check` gate** → update trackers → push → CI.
+
+**Scope:** fan-out is for A / B / C / H₁ (per-function). D–G are monolithic subsystem rewrites — single sequenced efforts, not fan-out.

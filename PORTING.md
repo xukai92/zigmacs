@@ -202,7 +202,7 @@ See `ARCH.md` for the full incremental porting strategy.
 
 ## Phase N: Real C→Zig Ports (Incremental)
 
-**Status:** 🟢 In Progress (10 functions ported)
+**Status:** 🟢 In Progress (19 functions ported)
 
 ### Port Map
 
