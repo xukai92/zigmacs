@@ -202,7 +202,7 @@ See `ARCH.md` for the full incremental porting strategy.
 
 ## Phase N: Real C→Zig Ports (Incremental)
 
-**Status:** 🟢 In Progress (35 functions ported)
+**Status:** 🟢 In Progress (48 functions ported)
 
 ### Port Map
 
@@ -243,6 +243,19 @@ See `ARCH.md` for the full incremental porting strategy.
 | `buffer-live-p` | `buffer.c:427` (Fbuffer_live_p) | `src/zig/buffer_live_p.zig` | ✅ PORTED | Property test + A/B mode | Corpus 36-buffer-live-p.el | Round #2; Cat H₁ (`zig_XBUFFER`/`zig_BUFFER_LIVE_P`) |
 | `keymapp` | `keymap.c:152` (Fkeymapp) | `src/zig/keymapp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 37-keymapp.el | Round #2; Cat H₁ (`zig_KEYMAPP`) |
 | `window-live-p` | `window.c:343` (Fwindow_live_p) | `src/zig/window_live_p.zig` | ✅ PORTED | Property test + A/B mode | Corpus 38-window-live-p.el | Round #2; Cat H₁ (`zig_WINDOW_LIVE_P`) |
+| `functionp` | `eval.c:3004` (Ffunctionp) | `src/zig/functionp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 39-functionp.el | **Round #3**; Cat A (`zig_FUNCTIONP`) |
+| `char-table-p` | `data.c:884` (Fchar_table_p) | `src/zig/char_table_p.zig` | ✅ PORTED | Property test + A/B mode | Corpus 40-char-table-p.el | Round #3; Cat A |
+| `markerp` | `data.c:1144` (Fmarkerp) | `src/zig/markerp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 41-markerp.el | Round #3; Cat A |
+| `bufferp` | `data.c:1094` (Fbufferp) | `src/zig/bufferp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 42-bufferp.el | Round #3; Cat A |
+| `elt` | `fns.c:2060` (Felt) | `src/zig/elt.zig` | ✅ PORTED | Property test + A/B mode | Corpus 43-elt.el | Round #3; Cat B (genuine Zig: `Fcar(Fnthcdr)` / `CHECK_ARRAY`+`Faref`) |
+| `proper-list-p` | `fns.c:371` (Fproper_list_p) | `src/zig/proper_list_p.zig` | ✅ PORTED | Property test + A/B mode | Corpus 44-proper-list-p.el | Round #3; Cat B (`zig_proper_list_p_full` helper) |
+| `rassq` | `fns.c:2376` (Frassq) | `src/zig/rassq.zig` | ✅ PORTED | Property test + A/B mode | Corpus 45-rassq.el | Round #3; Cat B (`zig_rassq_helper`) |
+| `forward-char` | `cmds.c:93` (Fforward_char) | `src/zig/forward-char.zig` | ✅ PORTED | **Snapshot→replay A/B mode** | Corpus 46-forward-char.el | Round #3; **Cat C MUTATING** (`zig_move_point(n,true)`; snapshot PT) |
+| `backward-char` | `cmds.c:170` (Fbackward_char) | `src/zig/backward-char.zig` | ✅ PORTED | **Snapshot→replay A/B mode** | Corpus 47-backward-char.el | Round #3; Cat C MUTATING (`zig_move_point(n,false)`) |
+| `forward-line` | `cmds.c:276` (Fforward_line) | `src/zig/forward-line.zig` | ✅ PORTED | **Snapshot→replay A/B mode** | Corpus 48-forward-line.el | Round #3; Cat C MUTATING (full port: `scan_newline_from_point` + shortage/excessive; snapshot PT+PT_BYTE) |
+| `frame-live-p` | `frame.c:277` (Fframe_live_p) | `src/zig/frame_live_p.zig` | ✅ PORTED | Property test + A/B mode | Corpus 49-frame-live-p.el | Round #3; Cat H₁ (`zig_XFRAME`/`FRAME_LIVE_P`/`Fframep`) |
+| `window-valid-p` | `window.c:333` (Fwindow_valid_p) | `src/zig/window_valid_p.zig` | ✅ PORTED | Property test + A/B mode | Corpus 50-window-valid-p.el | Round #3; Cat H₁ (`zig_WINDOW_VALID_P`) |
+| `file-name-nondirectory` | `fileio.c:578` (Ffile_name_nondirectory) | `src/zig/file_name_nondirectory.zig` | ✅ PORTED | A/B mode (`Fequal`, fresh string) | Corpus 51-file-name-nondirectory.el | Round #3; Cat H₁ — **first string-manipulation + file-handler port** (byte-walk + `make_specified_string`) |
 
 ### Architecture: Channel A In-Process A/B Verification
 

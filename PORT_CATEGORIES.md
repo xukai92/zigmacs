@@ -15,7 +15,7 @@
 | **Golden oracle** | `oracle/emacs-gcc` — gcc build of the exact vendored source (`scripts/build-oracle.sh`) |
 | **Repo** | `github.com/xukai92/zigmacs` |
 | **Fidelity gates** | per-PR: build + `make check` (allowlist gate, 25-min timeout); nightly: full byte-identical + ERT results-equality vs oracle |
-| **Last updated** | 2026-10-16 — **35 ports landed** (Cat A 17, B 7, C 5, H₁ 6) after fan-out **round #2** (+15: 4A/4B/4C/3H₁, parallel worktrees + serialized integration; Channel A no-mismatch, Channel B 15/15, CI green) |
+| **Last updated** | 2026-10-16 — **48 ports landed** (Cat A 21, B 10, C 8, H₁ 9) after fan-out **round #3** (+13: 4A/3B/3C/3H₁). Round #3 firsts: **mutating Cat-C ports** (forward-char/backward-char/forward-line via snapshot→replay) and the **first string-manipulation/file-handler port** (file-name-nondirectory). Channel A no-mismatch, Channel B 13/13, CI green. (Round #2 was +15 → 35.) |
 
 ## Progress by category
 
@@ -23,21 +23,21 @@ Surface ≈ **1,790 DEFUN primitives** total (~1,300 relevant to the nox build; 
 
 | Cat | What | Unit | Done / Total | Difficulty | Phase |
 |---|---|---|---|---|---|
-| **A** | Pure type predicates / `const` primitives | DEFUN | **17 / 25** | ★ trivial | 1 |
-| **B** | Pure computational primitives (arith, list/seq/string builders) | DEFUN | **7 / ~230** *(est)* | ★★ easy-med | 1 |
-| **C** | Stateful primitives (mutate buffer/point/match-data/globals) | DEFUN | **5 / ~260** *(est)* | ★★★ med | 1 |
+| **A** | Pure type predicates / `const` primitives | DEFUN | **21 / 25** | ★ trivial | 1 |
+| **B** | Pure computational primitives (arith, list/seq/string builders) | DEFUN | **10 / ~230** *(est)* | ★★ easy-med | 1 |
+| **C** | Stateful primitives (mutate buffer/point/match-data/globals) | DEFUN | **8 / ~260** *(est)* | ★★★ med | 1 |
 | **D** | Interpreter & reader core (`eval`, `bytecode` VM, `lread`) | subsystem | 0 / ~75 DEFUN + 3 engines | ★★★★ hard | 1–2 |
 | **E** | Buffer/text engine & search (`buffer`,`editfns`,`textprop`,`marker`,`insdel`,`search`,`regex`; ~21K LOC) | subsystem | 0 | ★★★★ hard | 2 |
 | **F** | Garbage collector (`alloc.c`, 8.4K LOC) | subsystem | 0 | ★★★★★ very hard | 2 |
 | **G** | Redisplay/terminal/windows (`xdisp` 38.6K, `dispnew`, `term`, `window`, `frame`; ~56K LOC) | subsystem | 0 | ★★★★★ hardest | 2+ |
-| **H** | I/O · process · event-loop · coding · tree-sitter · module/native-comp compat | DEFUN+ | **6 / ~280** *(est; H₁ slice)* | ★★★ med-hard | 1–3 |
+| **H** | I/O · process · event-loop · coding · tree-sitter · module/native-comp compat | DEFUN+ | **9 / ~280** *(est; H₁ slice)* | ★★★ med-hard | 1–3 |
 | **X** | GUI window-system backends (`xfns`/`pgtk`/`w32`/`ns`/`android`/`haiku`) | — | out of scope (nox) | — | — |
 
 *`~` = estimate from per-file DEFUN counts; replace with exact classification when done.*
 
 ## How-to per category
 
-### Cat A — Pure type predicates ✅ recipe proven (17 landed)
+### Cat A — Pure type predicates ✅ recipe proven (21 landed)
 1. `src/zig/<name>.zig`: `export fn zig_<name>(object) Lisp_Object` using shim wrappers.
 2. Add any missing shim wrapper to `src/zig/shim.{c,h}` (`zig_<MACRO>` = one-line `return <MACRO>(x);`).
 3. `src/data.c`: retain original as `<name>_orig`; make the `DEFUN` a **Channel A dispatcher** (call `zig_<name>` live; under `ZIGMACS_AB=1` run both + assert `EQ` + abort on mismatch).
@@ -52,8 +52,12 @@ Same Channel A dispatcher as A (dispatchers live in the fn's file, e.g. `fns.c`)
 3. **More accessors** than A: `XCAR`/`XCDR`/`CONSP`/`ASIZE`/`SCHARS`/`PVSIZE`/`EQ`/`BASE_EQ` shims.
 4. **Tests are property/fuzz batteries** (~10–20 edge cases): empty, single, long, dotted, **circular**, strings (ASCII+multibyte), vectors, bool-vectors, char-tables, wrong types, `eq`-vs-`equal` semantics.
 
-### Cat C — Stateful primitives ✅ recipe proven (`goto-char`; read-only point preds `bobp`/`eobp`/`bolp`/`eolp`)
+### Cat C — Stateful primitives ✅ recipe proven, incl. MUTATING (`goto-char`, `forward-char`, `backward-char`, `forward-line`; read-only preds `bobp`/`eobp`/`bolp`/`eolp`)
+**Round-#3 (mutating ports proven):** `forward-char`/`backward-char`/`forward-line` all mutate **point** → each uses the **snapshot→replay dispatcher** (snapshot PT [and PT_BYTE for `forward-line`]; run `_orig`; capture post-PT; `SET_PT_BOTH` restore; run Zig; compare return **and** post-PT; `emacs_abort` on mismatch). Two reusable learnings:
+- **Calling a `static` C helper from Zig:** `forward-char`/`backward-char` delegate to `move_point` (was `static` in cmds.c). Fix = **de-static it + add a prototype in lisp.h**, then wrap in the core shim (`zig_move_point`). Do the de-static in the solo shim-prep commit. (If a helper is also used by `eq_comparable_value`-style fns that stay static, skip that port instead.)
+- **A real C function (`scan_newline_from_point`) can be called as a direct Zig `extern "c"`** — no shim wrapper needed when it's already a linkable symbol with a pointer-friendly signature.
 **Round-#2 refinement:** *read-only* buffer/point inspectors (`bobp`, `eobp`, `bolp`, `eolp` — they inspect `PT`/`BEGV`/`ZV`/bytes but mutate nothing) are **not** stateful: use the **simple Cat-A/B dispatcher** (run Zig live; under `ZIGMACS_AB=1` also run `_orig` and assert `EQ`). **snapshot→replay is only needed when the primitive MUTATES observable state** (point, mark, narrowing, text, markers, match-data, globals). Classify read-only vs mutating first.
+**Fresh-object returns (any cat):** when a port returns a **newly allocated** object (e.g. `file-name-nondirectory` via `make_specified_string`), the A/B dispatcher must compare with **`Fequal` (content)**, NOT `EQ` (identity) — else it false-positives every call. (Applies to Cat B/H string/list builders too.)
 
 For primitives that **mutate** observable state, the Channel A dispatcher uses **snapshot→replay** to verify that Zig and C produce identical (return + post-state) on identical pre-state:
 
