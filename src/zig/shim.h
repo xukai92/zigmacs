@@ -175,4 +175,26 @@ extern Lisp_Object zig_call2 (Lisp_Object fn, Lisp_Object arg1,
 extern Lisp_Object zig_Qfile_name_nondirectory (void);
 extern void zig_error_invalid_file_handler (void);
 
+/* --- Fan-out round #4 wrappers --- */
+
+/* Cat A: keywordp */
+extern Lisp_Object zig_SYMBOL_NAME (Lisp_Object sym);
+extern bool zig_SYMBOL_INTERNED_IN_INITIAL_OBARRAY_P (Lisp_Object sym);
+
+/* Cat B: member / assoc */
+extern Lisp_Object zig_Fmemq (Lisp_Object elt, Lisp_Object list);
+extern Lisp_Object zig_Fassq (Lisp_Object key, Lisp_Object alist);
+extern Lisp_Object zig_member_equal_helper (Lisp_Object elt, Lisp_Object list);
+extern Lisp_Object zig_assoc_helper (Lisp_Object key, Lisp_Object alist,
+				     Lisp_Object testfn);
+
+/* Cat C: beginning-of-line / end-of-line (point movers) */
+extern void zig_CHECK_FIXNUM (Lisp_Object x);
+extern Lisp_Object zig_Fline_beginning_position (Lisp_Object n);
+extern Lisp_Object zig_Fline_end_position (Lisp_Object n);
+
+/* Cat H: file-name-directory */
+extern Lisp_Object zig_file_name_directory (Lisp_Object filename);
+extern Lisp_Object zig_Qfile_name_directory (void);
+
 #endif /* ZIG_SHIM_H */

@@ -715,3 +715,103 @@ zig_error_invalid_file_handler (void)
 {
   error ("Invalid handler in `file-name-handler-alist'");
 }
+
+/* ============================================================
+   Fan-out round #4 wrappers (added solo by orchestrator).
+   ============================================================ */
+
+/* === Cat A: keywordp (data.c) === */
+
+Lisp_Object
+zig_SYMBOL_NAME (Lisp_Object sym)
+{
+  return SYMBOL_NAME (sym);
+}
+
+bool
+zig_SYMBOL_INTERNED_IN_INITIAL_OBARRAY_P (Lisp_Object sym)
+{
+  return SYMBOL_INTERNED_IN_INITIAL_OBARRAY_P (sym);
+}
+
+/* === Cat B: member / assoc (fns.c) ===
+   eq_comparable_value is trivially (SYMBOLP||FIXNUMP) and is inlined in the
+   Zig ports; these helpers cover the `equal`/testfn traversal + CHECK_LIST_END. */
+
+Lisp_Object
+zig_Fmemq (Lisp_Object elt, Lisp_Object list)
+{
+  return Fmemq (elt, list);
+}
+
+Lisp_Object
+zig_Fassq (Lisp_Object key, Lisp_Object alist)
+{
+  return Fassq (key, alist);
+}
+
+/* member's non-eq branch: first tail whose car is `equal' to ELT, else Qnil. */
+Lisp_Object
+zig_member_equal_helper (Lisp_Object elt, Lisp_Object list)
+{
+  Lisp_Object tail = list;
+  FOR_EACH_TAIL (tail)
+    if (!NILP (Fequal (elt, XCAR (tail))))
+      return tail;
+  CHECK_LIST_END (tail, list);
+  return Qnil;
+}
+
+/* assoc's non-fast branch: first alist elt whose car matches KEY (via `equal'
+   or TESTFN), ignoring non-cons elements; else Qnil. */
+Lisp_Object
+zig_assoc_helper (Lisp_Object key, Lisp_Object alist, Lisp_Object testfn)
+{
+  Lisp_Object tail = alist;
+  FOR_EACH_TAIL (tail)
+    {
+      Lisp_Object car = XCAR (tail);
+      if (!CONSP (car))
+	continue;
+      if ((NILP (testfn)
+	   ? (EQ (XCAR (car), key) || !NILP (Fequal (XCAR (car), key)))
+	   : !NILP (call2 (testfn, XCAR (car), key))))
+	return car;
+    }
+  CHECK_LIST_END (tail, alist);
+  return Qnil;
+}
+
+/* === Cat C: beginning-of-line / end-of-line (cmds.c) — point movers === */
+
+void
+zig_CHECK_FIXNUM (Lisp_Object x)
+{
+  CHECK_FIXNUM (x);
+}
+
+Lisp_Object
+zig_Fline_beginning_position (Lisp_Object n)
+{
+  return Fline_beginning_position (n);
+}
+
+Lisp_Object
+zig_Fline_end_position (Lisp_Object n)
+{
+  return Fline_end_position (n);
+}
+
+/* === Cat H: file-name-directory (fileio.c) === */
+
+Lisp_Object
+zig_file_name_directory (Lisp_Object filename)
+{
+  return file_name_directory (filename);
+}
+
+Lisp_Object
+zig_Qfile_name_directory (void)
+{
+  return Qfile_name_directory;
+}
