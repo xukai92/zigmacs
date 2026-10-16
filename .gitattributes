@@ -1,2 +1,0 @@
-src/zig/shim.c merge=union
-src/zig/shim.h merge=union

@@ -170,6 +170,10 @@ bool
 zig_CHARACTERP (Lisp_Object obj)
 {
   return CHARACTERP (obj);
+}
+
+/* === Array / sequence size operations === */
+
 intptr_t
 zig_ASIZE (Lisp_Object obj)
 {
@@ -281,6 +285,8 @@ zig_assq_helper (Lisp_Object key, Lisp_Object alist)
       return XCAR (tail);
   CHECK_LIST_END (tail, alist);
   return Qnil;
+}
+
 /* === Process operations === */
 
 bool
