@@ -35,8 +35,18 @@ extern bool zig_SYMBOLP (Lisp_Object obj);
 /* String operations */
 extern bool zig_STRINGP (Lisp_Object obj);
 extern Lisp_Object zig_build_string (const char *str);
+extern char *zig_SSDATA (Lisp_Object string);
+extern void zig_CHECK_STRING (Lisp_Object x);
 
 /* Vector operations */
 extern bool zig_VECTORP (Lisp_Object obj);
+
+/* Process operations */
+extern bool zig_PROCESSP (Lisp_Object obj);
+
+/* Coding system operations */
+extern int zig_CODING_SYSTEM_ID (Lisp_Object obj);
+extern Lisp_Object zig_Fget (Lisp_Object symbol, Lisp_Object propname);
+extern Lisp_Object zig_Qcoding_system_define_form (void);
 
 #endif /* ZIG_SHIM_H */

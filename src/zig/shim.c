@@ -12,6 +12,8 @@
 #include <config.h>
 #include "lisp.h"
 #include "bignum.h"
+#include "process.h"
+#include "coding.h"
 #include "zig/shim.h"
 
 /* === Fixnum operations (inline/macro in lisp.h) === */
@@ -133,10 +135,50 @@ zig_build_string (const char *str)
   return build_string (str);
 }
 
+char *
+zig_SSDATA (Lisp_Object string)
+{
+  return SSDATA (string);
+}
+
+void
+zig_CHECK_STRING (Lisp_Object x)
+{
+  CHECK_STRING (x);
+}
+
 /* === Vector operations === */
 
 bool
 zig_VECTORP (Lisp_Object obj)
 {
   return VECTORP (obj);
+}
+
+/* === Process operations === */
+
+bool
+zig_PROCESSP (Lisp_Object obj)
+{
+  return PROCESSP (obj);
+}
+
+/* === Coding system operations === */
+
+int
+zig_CODING_SYSTEM_ID (Lisp_Object obj)
+{
+  return CODING_SYSTEM_ID (obj);
+}
+
+Lisp_Object
+zig_Fget (Lisp_Object symbol, Lisp_Object propname)
+{
+  return Fget (symbol, propname);
+}
+
+Lisp_Object
+zig_Qcoding_system_define_form (void)
+{
+  return Qcoding_system_define_form;
 }
