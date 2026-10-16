@@ -64,6 +64,9 @@ extern Lisp_Object zig_consp (Lisp_Object object);
 /* Zig implementation of vectorp (ninth C→Zig leaf port in Zigmacs) */
 extern Lisp_Object zig_vectorp (Lisp_Object object);
 
+/* Zig implementation of listp (tenth C→Zig leaf port in Zigmacs) */
+extern Lisp_Object zig_listp (Lisp_Object object);
+
 /* === End Zig declarations === */
 
 static void swap_in_symval_forwarding (struct Lisp_Symbol *,
@@ -397,15 +400,56 @@ DEFUN ("atom", Fatom, Satom, 1, 1, 0,
   return Qt;
 }
 
+/* Original C implementation of listp, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+listp_orig (Lisp_Object object)
+{
+  if (CONSP (object) || NILP (object))
+    return Qt;
+  return Qnil;
+}
+
+/* Channel A dispatcher for listp.
+   Normal mode: returns zig_listp(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("listp", Flistp, Slistp, 1, 1, 0,
        doc: /* Return t if OBJECT is a list, that is, a cons cell or nil.
 Otherwise, return nil.  */
        attributes: const)
   (Lisp_Object object)
 {
-  if (CONSP (object) || NILP (object))
-    return Qt;
-  return Qnil;
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_listp (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = listp_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: listp ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 /* Original C implementation of nlistp, retained for Channel A verification.

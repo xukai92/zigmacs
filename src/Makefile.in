@@ -490,7 +490,7 @@ zig_spike_obj = zig_spike.o
 ## Phase-2 @cImport spike objects
 zig_cimport_spike_obj = zig_cimport_spike.o
 ## Phase-N: Real Zig ports (natnump is first, nlistp is second)
-zig_port_obj = zig/natnump.o zig/nlistp.o zig/numberp.o zig/integerp.o zig/floatp.o zig/symbolp.o zig/stringp.o zig/consp.o zig/vectorp.o
+zig_port_obj = zig/natnump.o zig/nlistp.o zig/numberp.o zig/integerp.o zig/floatp.o zig/symbolp.o zig/stringp.o zig/consp.o zig/vectorp.o zig/listp.o
 doc_obj = $(base_obj) $(NS_OBJC_OBJ)
 obj = $(doc_obj) $(HAIKU_CXX_OBJ) $(zig_spike_obj) $(zig_cimport_spike_obj) $(zig_port_obj)
 
@@ -620,6 +620,10 @@ zig/consp.o: $(srcdir)/zig/consp.zig
 zig/vectorp.o: $(srcdir)/zig/vectorp.zig
 	$(AM_V_GEN)$(ZIG) build-obj -target native -OReleaseSafe -lc \
 	  $(srcdir)/zig/vectorp.zig -femit-bin=$@
+
+zig/listp.o: $(srcdir)/zig/listp.zig
+	$(AM_V_GEN)$(ZIG) build-obj -target native -OReleaseSafe -lc \
+	  $(srcdir)/zig/listp.zig -femit-bin=$@
 
 ## This is the list of all Lisp files that might be loaded into the
 ## dumped Emacs.  Some of them are not loaded on all platforms, but
