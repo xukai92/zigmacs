@@ -56,6 +56,42 @@ _These are whole-subsystem rewrites (Phase 2), NOT fan-out-able as independent s
 
 ### Cat H — I/O / process / compat — _how-to TBD (write after sampling)_
 
+## Dependency graph & port ordering
+
+**Key enabler:** unported C stays callable (C-interop), so **runtime call-dependencies do NOT gate port order** — a ported Zig fn calls unported C and vice-versa. The graph is therefore sparse: mostly *tooling gates* + the Phase-2 subsystem sequence. Great for parallelism.
+
+- **Substrate** (stays C, always callable): object model (tags / `Lisp_Object`), OS.
+- **Foundation** (DONE): binding (extern + shim), Channel A dispatcher, fidelity harness + oracle, CI gates.
+
+Port-order DAG (`→` = "depends on / port after"):
+
+```
+Foundation (done)
+  ├─ A  pure predicates        → (nothing else)          ⟹ parallel NOW
+  ├─ B  pure computational     → C allocator (C, ok)     ⟹ parallel NOW
+  ├─ H₁ process/fileio/coding  → OS (C, ok)              ⟹ parallel NOW (independent)
+  ├─ C  stateful primitives    → [snapshot→replay tool]  ⟹ parallel AFTER that tool
+  ├─ D  interpreter/reader/VM  → object model + GC (C, ok); HIGH blast radius; VM monolithic
+  └─ H₂ event loop (keyboard)  → D (command dispatch/eval)
+
+Phase-2 monoliths (SEQUENCED, not fan-out):
+   E buffer/text rope → [buffer-state fidelity surface ✓]; runs on the C GC
+        → F GC (alloc.c)  [non-moving; ARCH §7; ordered after E]
+             → G redisplay (xdisp) → E + window/frame + faces + H₂   (LAST)
+
+Orthogonal gate: parallel fan-out → [build de-conflict: auto-glob Makefile, modular shim, worktrees + serialized merge]
+Post-v0 gate:    doomemacs/modules → emacs-module ABI (H) + display parity (G)
+```
+
+**Reading it:**
+- **No edges among A, B, H₁** → fully independent → the fan-out pool.
+- **C** waits only on the one-time snapshot→replay tool.
+- **D** (interpreter) and **F** (GC) are the high-blast-radius spines — port carefully / semi-sequentially, *not* fanned out.
+- **E → F → G** is a hard sequence (ARCH §5): rope, then GC, then redisplay — Phase-2 monoliths, one focused effort each.
+- **The v0 Doom-core gate is display-free** → it rides on the interpreter (D) + I/O (H) + primitives, **not** E/F/G. So the *hardest* categories are **post-v0** (interactive/module parity), not on the v0 critical path.
+
+**Practical order:** (1) now, parallel after de-conflict: **A, B, H₁** (hundreds of independent leaf ports); (2) build **snapshot→replay** → unlock **C** (parallel); (3) **D** reader→eval→VM as a careful mostly-sequential track; (4) Phase-2 **E → F → G** as single gated efforts.
+
 ## Ported log
 See `PORTING.md` for the per-function table. Cat A done: `natnump`, `nlistp`, `numberp`, `integerp`, `floatp`, `symbolp`, `stringp`, `consp`, `vectorp`, `listp`.
 
