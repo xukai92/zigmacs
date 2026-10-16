@@ -326,13 +326,58 @@ window.  Windows that have been deleted are not valid.  */)
   return WINDOW_VALID_P (object) ? Qt : Qnil;
 }
 
+
+/* Zig port declaration (from src/zig/window_live_p.zig) */
+extern Lisp_Object zig_window_live_p (Lisp_Object object);
+
+/* Original C implementation (preserved for A/B verification) */
+static Lisp_Object
+window_live_p_orig (Lisp_Object object)
+{
+  return WINDOW_LIVE_P (object) ? Qt : Qnil;
+}
+
+/* Channel A dispatcher for window-live-p.
+   Normal mode: returns zig_window_live_p(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("window-live-p", Fwindow_live_p, Swindow_live_p, 1, 1, 0,
        doc: /* Return t if OBJECT is a live window and nil otherwise.
 A live window is a window that displays a buffer.
 Internal windows and deleted windows are not live.  */)
   (Lisp_Object object)
 {
-  return WINDOW_LIVE_P (object) ? Qt : Qnil;
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_window_live_p (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = window_live_p_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: window-live-p ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  /* Return Zig result (live implementation) */
+  return zig_result;
 }
 
 /* Frames and windows.  */

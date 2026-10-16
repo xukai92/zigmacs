@@ -135,6 +135,20 @@ initial_define_lispy_key (Lisp_Object keymap, const char *keyname, const char *d
 		   intern_c_string (defname), false);
 }
 
+
+/* Zig port declaration (from src/zig/keymapp.zig) */
+extern Lisp_Object zig_keymapp (Lisp_Object object);
+
+/* Original C implementation (preserved for A/B verification) */
+static Lisp_Object
+keymapp_orig (Lisp_Object object)
+{
+  return (KEYMAPP (object) ? Qt : Qnil);
+}
+
+/* Channel A dispatcher for keymapp.
+   Normal mode: returns zig_keymapp(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("keymapp", Fkeymapp, Skeymapp, 1, 1, 0,
        doc: /* Return t if OBJECT is a keymap.
 
@@ -145,7 +159,38 @@ a vector of densely packed bindings for small character codes
 is also allowed as an element.  */)
   (Lisp_Object object)
 {
-  return (KEYMAPP (object) ? Qt : Qnil);
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_keymapp (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = keymapp_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: keymapp ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  /* Return Zig result (live implementation) */
+  return zig_result;
 }
 
 DEFUN ("keymap-prompt", Fkeymap_prompt, Skeymap_prompt, 1, 1, 0,
