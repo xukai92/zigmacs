@@ -39,4 +39,10 @@ extern Lisp_Object zig_build_string (const char *str);
 /* Vector operations */
 extern bool zig_VECTORP (Lisp_Object obj);
 
+/* Bare symbol operations */
+extern bool zig_BARE_SYMBOL_P (Lisp_Object obj);
+
+/* Character operations */
+extern bool zig_CHARACTERP (Lisp_Object obj);
+
 #endif /* ZIG_SHIM_H */

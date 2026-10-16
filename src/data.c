@@ -67,6 +67,15 @@ extern Lisp_Object zig_vectorp (Lisp_Object object);
 /* Zig implementation of listp (tenth C→Zig leaf port in Zigmacs) */
 extern Lisp_Object zig_listp (Lisp_Object object);
 
+/* Zig implementation of bare-symbol-p (eleventh C→Zig leaf port in Zigmacs) */
+extern Lisp_Object zig_bare_symbol_p (Lisp_Object object);
+
+/* Zig implementation of char-or-string-p (twelfth C→Zig leaf port in Zigmacs) */
+extern Lisp_Object zig_char_or_string_p (Lisp_Object object);
+
+/* Zig implementation of atom (thirteenth C→Zig leaf port in Zigmacs) */
+extern Lisp_Object zig_atom (Lisp_Object object);
+
 /* === End Zig declarations === */
 
 static void swap_in_symval_forwarding (struct Lisp_Symbol *,
@@ -390,14 +399,55 @@ DEFUN ("consp", Fconsp, Sconsp, 1, 1, 0,
   return zig_result;
 }
 
+/* Original C implementation of atom, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+atom_orig (Lisp_Object object)
+{
+  if (CONSP (object))
+    return Qnil;
+  return Qt;
+}
+
+/* Channel A dispatcher for atom.
+   Normal mode: returns zig_atom(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("atom", Fatom, Satom, 1, 1, 0,
        doc: /* Return t if OBJECT is not a cons cell.  This includes nil.  */
        attributes: const)
   (Lisp_Object object)
 {
-  if (CONSP (object))
-    return Qnil;
-  return Qt;
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_atom (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = atom_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: atom ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 /* Original C implementation of listp, retained for Channel A verification.
@@ -503,14 +553,55 @@ DEFUN ("nlistp", Fnlistp, Snlistp, 1, 1, 0,
   return zig_result;
 }
 
+/* Original C implementation of bare-symbol-p, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+bare_symbol_p_orig (Lisp_Object object)
+{
+  if (BARE_SYMBOL_P (object))
+    return Qt;
+  return Qnil;
+}
+
+/* Channel A dispatcher for bare-symbol-p.
+   Normal mode: returns zig_bare_symbol_p(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("bare-symbol-p", Fbare_symbol_p, Sbare_symbol_p, 1, 1, 0,
        doc: /* Return t if OBJECT is a symbol, but not a symbol together with position.  */
        attributes: const)
   (Lisp_Object object)
 {
-  if (BARE_SYMBOL_P (object))
-    return Qt;
-  return Qnil;
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_bare_symbol_p (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = bare_symbol_p_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: bare-symbol-p ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 DEFUN ("symbol-with-pos-p", Fsymbol_with_pos_p, Ssymbol_with_pos_p, 1, 1, 0,
@@ -833,14 +924,55 @@ DEFUN ("module-function-p", Fmodule_function_p, Smodule_function_p, 1, 1, NULL,
   return MODULE_FUNCTIONP (object) ? Qt : Qnil;
 }
 
+/* Original C implementation of char-or-string-p, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+char_or_string_p_orig (Lisp_Object object)
+{
+  if (CHARACTERP (object) || STRINGP (object))
+    return Qt;
+  return Qnil;
+}
+
+/* Channel A dispatcher for char-or-string-p.
+   Normal mode: returns zig_char_or_string_p(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("char-or-string-p", Fchar_or_string_p, Schar_or_string_p, 1, 1, 0,
        doc: /* Return t if OBJECT is a character or a string.  */
        attributes: const)
   (register Lisp_Object object)
 {
-  if (CHARACTERP (object) || STRINGP (object))
-    return Qt;
-  return Qnil;
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_char_or_string_p (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = char_or_string_p_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: char-or-string-p ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 /* Original C implementation of integerp, retained for Channel A verification.

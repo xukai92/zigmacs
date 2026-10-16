@@ -12,6 +12,7 @@
 #include <config.h>
 #include "lisp.h"
 #include "bignum.h"
+#include "character.h"
 #include "zig/shim.h"
 
 /* === Fixnum operations (inline/macro in lisp.h) === */
@@ -139,4 +140,20 @@ bool
 zig_VECTORP (Lisp_Object obj)
 {
   return VECTORP (obj);
+}
+
+/* === Bare symbol operations === */
+
+bool
+zig_BARE_SYMBOL_P (Lisp_Object obj)
+{
+  return BARE_SYMBOL_P (obj);
+}
+
+/* === Character operations === */
+
+bool
+zig_CHARACTERP (Lisp_Object obj)
+{
+  return CHARACTERP (obj);
 }
