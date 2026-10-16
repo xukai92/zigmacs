@@ -4257,6 +4257,7 @@ extern void syms_of_zig_spike (void);
 extern void syms_of_zig_cimport_spike (void);
 
 /* Defined in cmds.c */
+extern Lisp_Object move_point (Lisp_Object n, bool forward);
 extern void syms_of_cmds (void);
 
 /* Defined in coding.c.  */

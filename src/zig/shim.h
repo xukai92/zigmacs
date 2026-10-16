@@ -141,4 +141,38 @@ extern bool zig_BUFFER_LIVE_P (struct buffer *b);
 extern bool zig_KEYMAPP (Lisp_Object obj);
 extern bool zig_WINDOW_LIVE_P (Lisp_Object obj);
 
+/* --- Fan-out round #3 wrappers --- */
+
+/* Cat B: elt / proper-list-p / rassq */
+extern void zig_CHECK_ARRAY (Lisp_Object x, Lisp_Object predicate);
+extern Lisp_Object zig_Faref (Lisp_Object array, Lisp_Object idx);
+extern Lisp_Object zig_Qsequencep (void);
+extern Lisp_Object zig_proper_list_p_full (Lisp_Object object);
+extern Lisp_Object zig_rassq_helper (Lisp_Object key, Lisp_Object alist);
+
+/* Cat C: point movers (stateful, snapshot→replay) */
+extern Lisp_Object zig_move_point (Lisp_Object n, bool forward);
+extern void zig_CHECK_INTEGER (Lisp_Object x);
+extern Lisp_Object zig_Fnatnump (Lisp_Object x);
+extern intptr_t zig_BUF_BYTES_MAX (void);
+extern void zig_SET_PT_BOTH (ptrdiff_t position, ptrdiff_t byte);
+extern Lisp_Object zig_call_Fplus2 (Lisp_Object a, Lisp_Object b);
+
+/* Cat H1: frame/window liveness + file-name string ops */
+extern struct frame *zig_XFRAME (Lisp_Object obj);
+extern bool zig_FRAME_LIVE_P (struct frame *f);
+extern Lisp_Object zig_Fframep (Lisp_Object obj);
+extern bool zig_WINDOW_VALID_P (Lisp_Object obj);
+extern Lisp_Object zig_make_specified_string (const char *contents,
+					      ptrdiff_t nchars,
+					      ptrdiff_t nbytes, bool multibyte);
+extern bool zig_IS_DIRECTORY_SEP (int c);
+extern bool zig_STRING_MULTIBYTE (Lisp_Object str);
+extern Lisp_Object zig_Ffind_file_name_handler (Lisp_Object filename,
+						Lisp_Object operation);
+extern Lisp_Object zig_call2 (Lisp_Object fn, Lisp_Object arg1,
+			      Lisp_Object arg2);
+extern Lisp_Object zig_Qfile_name_nondirectory (void);
+extern void zig_error_invalid_file_handler (void);
+
 #endif /* ZIG_SHIM_H */

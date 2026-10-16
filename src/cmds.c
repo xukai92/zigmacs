@@ -32,8 +32,10 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 static int internal_self_insert (int, EMACS_INT);
 
 /* Add N to point; or subtract N if FORWARD is false.  N defaults to 1.
-   Validate the new location.  Return nil.  */
-static Lisp_Object
+   Validate the new location.  Return nil.
+   NOTE: de-static'd (was `static`) so the Zig port of forward-char/
+   backward-char can call it via the core shim (`zig_move_point`). */
+Lisp_Object
 move_point (Lisp_Object n, bool forward)
 {
   /* This used to just set point to point + XFIXNUM (n), and then check

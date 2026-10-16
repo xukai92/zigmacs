@@ -22,7 +22,11 @@
 #include "buffer.h"
 #include "window.h"
 #include "keymap.h"
+#include "frame.h"
 #include "zig/shim.h"
+
+/* move_point: de-static'd in cmds.c (prototype in lisp.h) so the Cat-C
+   forward/backward-char Zig ports can call it via zig_move_point. */
 
 /* === Fixnum operations (inline/macro in lisp.h) === */
 
@@ -544,4 +548,170 @@ bool
 zig_WINDOW_LIVE_P (Lisp_Object obj)
 {
   return WINDOW_LIVE_P (obj);
+}
+
+/* ============================================================
+   Fan-out round #3 wrappers (added solo by orchestrator).
+   ============================================================ */
+
+/* === Cat B: elt / proper-list-p / rassq (fns.c) === */
+
+void
+zig_CHECK_ARRAY (Lisp_Object x, Lisp_Object predicate)
+{
+  CHECK_ARRAY (x, predicate);
+}
+
+Lisp_Object
+zig_Faref (Lisp_Object array, Lisp_Object idx)
+{
+  return Faref (array, idx);
+}
+
+Lisp_Object
+zig_Qsequencep (void)
+{
+  return Qsequencep;
+}
+
+/* Full impl of proper-list-p's traversal (FOR_EACH_TAIL_SAFE + rarely_quit
+   cycle/quit handling is complex; mirror upstream exactly here).
+   Returns make_fixnum(len) for a proper list, else Qnil. */
+Lisp_Object
+zig_proper_list_p_full (Lisp_Object object)
+{
+  intptr_t len = 0;
+  Lisp_Object last_tail = object;
+  Lisp_Object tail = object;
+  FOR_EACH_TAIL_SAFE (tail)
+    {
+      len++;
+      rarely_quit (len);
+      last_tail = XCDR (tail);
+    }
+  if (!NILP (last_tail))
+    return Qnil;
+  return make_fixnum (len);
+}
+
+/* Helper for rassq: FOR_EACH_TAIL + CHECK_LIST_END (cycle/improper detection).
+   Returns first element of ALIST whose cdr is `eq' to KEY, or Qnil. */
+Lisp_Object
+zig_rassq_helper (Lisp_Object key, Lisp_Object alist)
+{
+  Lisp_Object tail = alist;
+  FOR_EACH_TAIL (tail)
+    if (CONSP (XCAR (tail)) && EQ (XCDR (XCAR (tail)), key))
+      return XCAR (tail);
+  CHECK_LIST_END (tail, alist);
+  return Qnil;
+}
+
+/* === Cat C: point movers (cmds.c) — stateful, snapshot→replay === */
+
+Lisp_Object
+zig_move_point (Lisp_Object n, bool forward)
+{
+  return move_point (n, forward);
+}
+
+void
+zig_CHECK_INTEGER (Lisp_Object x)
+{
+  CHECK_INTEGER (x);
+}
+
+Lisp_Object
+zig_Fnatnump (Lisp_Object x)
+{
+  return Fnatnump (x);
+}
+
+intptr_t
+zig_BUF_BYTES_MAX (void)
+{
+  return BUF_BYTES_MAX;
+}
+
+void
+zig_SET_PT_BOTH (ptrdiff_t position, ptrdiff_t byte)
+{
+  SET_PT_BOTH (position, byte);
+}
+
+/* forward-line's `excessive` path computes CALLN (Fplus, make_fixnum (…), n). */
+Lisp_Object
+zig_call_Fplus2 (Lisp_Object a, Lisp_Object b)
+{
+  return CALLN (Fplus, a, b);
+}
+
+/* === Cat H1: frame/window liveness + file-name string ops === */
+
+struct frame *
+zig_XFRAME (Lisp_Object obj)
+{
+  return XFRAME (obj);
+}
+
+bool
+zig_FRAME_LIVE_P (struct frame *f)
+{
+  return FRAME_LIVE_P (f);
+}
+
+Lisp_Object
+zig_Fframep (Lisp_Object obj)
+{
+  return Fframep (obj);
+}
+
+bool
+zig_WINDOW_VALID_P (Lisp_Object obj)
+{
+  return WINDOW_VALID_P (obj);
+}
+
+Lisp_Object
+zig_make_specified_string (const char *contents, ptrdiff_t nchars,
+			   ptrdiff_t nbytes, bool multibyte)
+{
+  return make_specified_string (contents, nchars, nbytes, multibyte);
+}
+
+bool
+zig_IS_DIRECTORY_SEP (int c)
+{
+  return IS_DIRECTORY_SEP (c);
+}
+
+bool
+zig_STRING_MULTIBYTE (Lisp_Object str)
+{
+  return STRING_MULTIBYTE (str);
+}
+
+Lisp_Object
+zig_Ffind_file_name_handler (Lisp_Object filename, Lisp_Object operation)
+{
+  return Ffind_file_name_handler (filename, operation);
+}
+
+Lisp_Object
+zig_call2 (Lisp_Object fn, Lisp_Object arg1, Lisp_Object arg2)
+{
+  return call2 (fn, arg1, arg2);
+}
+
+Lisp_Object
+zig_Qfile_name_nondirectory (void)
+{
+  return Qfile_name_nondirectory;
+}
+
+/* Fixed-string error for file-name-nondirectory's invalid-handler path. */
+void
+zig_error_invalid_file_handler (void)
+{
+  error ("Invalid handler in `file-name-handler-alist'");
 }
