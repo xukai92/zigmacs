@@ -213,6 +213,7 @@ See `ARCH.md` for the full incremental porting strategy.
 | `numberp` | `data.c:687` (Fnumberp) | `src/zig/numberp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 15-numberp.el | Third leaf port; tests number predicates (fixnum/bignum/float) |
 | `integerp` | `data.c:620` (Fintegerp) | `src/zig/integerp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 16-integerp.el | Fourth leaf port; integer predicate (fixnum/bignum, NOT float) |
 | `floatp` | `data.c:796` (Ffloatp) | `src/zig/floatp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 17-floatp.el | Fifth leaf port; float predicate (float only, NOT integer) |
+| `symbolp` | `data.c:430` (Fsymbolp) | `src/zig/symbolp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 18-symbolp.el | Sixth leaf port; symbol predicate (nil and t ARE symbols) |
 
 ### Architecture: Channel A In-Process A/B Verification
 

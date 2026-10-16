@@ -52,6 +52,9 @@ extern Lisp_Object zig_integerp (Lisp_Object object);
 /* Zig implementation of floatp (fifth C→Zig leaf port in Zigmacs) */
 extern Lisp_Object zig_floatp (Lisp_Object object);
 
+/* Zig implementation of symbolp (sixth C→Zig leaf port in Zigmacs) */
+extern Lisp_Object zig_symbolp (Lisp_Object object);
+
 /* === End Zig declarations === */
 
 static void swap_in_symval_forwarding (struct Lisp_Symbol *,
@@ -427,14 +430,55 @@ Ignore `symbols-with-pos-enabled'.  */
   return Qnil;
 }
 
+/* Original C implementation of symbolp, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+symbolp_orig (Lisp_Object object)
+{
+  if (SYMBOLP (object))
+    return Qt;
+  return Qnil;
+}
+
+/* Channel A dispatcher for symbolp.
+   Normal mode: returns zig_symbolp(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("symbolp", Fsymbolp, Ssymbolp, 1, 1, 0,
        doc: /* Return t if OBJECT is a symbol.  */
        attributes: const)
   (Lisp_Object object)
 {
-  if (SYMBOLP (object))
-    return Qt;
-  return Qnil;
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_symbolp (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = symbolp_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: symbolp ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 DEFUN ("keywordp", Fkeywordp, Skeywordp, 1, 1, 0,
