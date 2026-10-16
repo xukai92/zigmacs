@@ -8608,11 +8608,12 @@ to_unicode (Lisp_Object str, Lisp_Object *buf)
 
 /*** 8. Emacs Lisp library functions ***/
 
-DEFUN ("coding-system-p", Fcoding_system_p, Scoding_system_p, 1, 1, 0,
-       doc: /* Return t if OBJECT is nil or a coding-system.
-See the documentation of `define-coding-system' for information
-about coding-system objects.  */)
-  (Lisp_Object object)
+/* Zig port declaration (from src/zig/coding-system-p.zig) */
+extern Lisp_Object zig_coding_system_p (Lisp_Object object);
+
+/* Original C implementation (preserved for A/B verification) */
+static Lisp_Object
+coding_system_p_orig (Lisp_Object object)
 {
   if (NILP (object)
       || CODING_SYSTEM_ID (object) >= 0)
@@ -8621,6 +8622,49 @@ about coding-system objects.  */)
       || NILP (Fget (object, Qcoding_system_define_form)))
     return Qnil;
   return Qt;
+}
+
+/* Channel A dispatcher for coding-system-p.
+   Normal mode: returns zig_coding_system_p(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
+DEFUN ("coding-system-p", Fcoding_system_p, Scoding_system_p, 1, 1, 0,
+       doc: /* Return t if OBJECT is nil or a coding-system.
+See the documentation of `define-coding-system' for information
+about coding-system objects.  */)
+  (Lisp_Object object)
+{
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_coding_system_p (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = coding_system_p_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: coding-system-p ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  /* Return Zig result (live implementation) */
+  return zig_result;
 }
 
 DEFUN ("read-non-nil-coding-system", Fread_non_nil_coding_system,
