@@ -202,7 +202,7 @@ See `ARCH.md` for the full incremental porting strategy.
 
 ## Phase N: Real C→Zig Ports (Incremental)
 
-**Status:** 🟢 In Progress (7 functions ported)
+**Status:** 🟢 In Progress (8 functions ported)
 
 ### Port Map
 
@@ -215,6 +215,7 @@ See `ARCH.md` for the full incremental porting strategy.
 | `floatp` | `data.c:796` (Ffloatp) | `src/zig/floatp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 17-floatp.el | Fifth leaf port; float predicate (float only, NOT integer) |
 | `symbolp` | `data.c:430` (Fsymbolp) | `src/zig/symbolp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 18-symbolp.el | Sixth leaf port; symbol predicate (nil and t ARE symbols) |
 | `stringp` | `data.c:515` (Fstringp) | `src/zig/stringp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 19-stringp.el | Seventh leaf port; string predicate (multibyte/unibyte) |
+| `consp` | `data.c:333` (Fconsp) | `src/zig/consp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 20-consp.el | Eighth leaf port; cons predicate (nil is NOT a cons) |
 
 ### Architecture: Channel A In-Process A/B Verification
 

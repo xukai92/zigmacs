@@ -58,6 +58,9 @@ extern Lisp_Object zig_symbolp (Lisp_Object object);
 /* Zig implementation of stringp (seventh C→Zig leaf port in Zigmacs) */
 extern Lisp_Object zig_stringp (Lisp_Object object);
 
+/* Zig implementation of consp (eighth C→Zig leaf port in Zigmacs) */
+extern Lisp_Object zig_consp (Lisp_Object object);
+
 /* === End Zig declarations === */
 
 static void swap_in_symval_forwarding (struct Lisp_Symbol *,
@@ -330,14 +333,55 @@ a fixed set of types.  */)
     }
 }
 
+/* Original C implementation of consp, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+consp_orig (Lisp_Object object)
+{
+  if (CONSP (object))
+    return Qt;
+  return Qnil;
+}
+
+/* Channel A dispatcher for consp.
+   Normal mode: returns zig_consp(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
 DEFUN ("consp", Fconsp, Sconsp, 1, 1, 0,
        doc: /* Return t if OBJECT is a cons cell.  */
        attributes: const)
   (Lisp_Object object)
 {
-  if (CONSP (object))
-    return Qt;
-  return Qnil;
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_consp (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = consp_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: consp ***\n");
+	  fprintf (stderr, "Input:      ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 DEFUN ("atom", Fatom, Satom, 1, 1, 0,
