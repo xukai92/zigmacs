@@ -45,7 +45,7 @@ AB_MARKER = 'egetenv ("ZIGMACS_AB")'
 # Declared per-category metadata (soft TOTALs + labels). Edit as classification
 # of the surface improves; DONE is always computed, never taken from here.
 CATEGORIES = [
-    ("A", "Pure type predicates / const", 25, "leaf"),
+    ("A", "Pure type predicates / const", 40, "leaf"),
     ("B", "Pure computational (arith, list/seq/string)", 230, "leaf"),
     ("C", "Stateful (mutate point/buffer/globals)", 260, "leaf"),
     ("D", "Interpreter & reader core", None, "subsystem"),
@@ -55,7 +55,7 @@ CATEGORIES = [
     ("H", "I/O / process / coding / compat", 280, "leaf"),
     ("X", "GUI window-system backends", None, "excluded"),
 ]
-EST_CATS = {"B", "C", "H"}  # TOTAL is an estimate (mark with ~)
+EST_CATS = {"A", "B", "C", "H"}  # TOTAL is an estimate (mark with ~)
 
 
 def git_sha() -> str:

@@ -61,3 +61,14 @@ window-live-p	H
 frame-live-p	H
 window-valid-p	H
 file-name-nondirectory	H
+# --- round #4 ports ---
+keywordp	A
+subrp	A
+closurep	A
+multibyte-string-p	A
+member	B
+assoc	B
+hash-table-p	B
+beginning-of-line	C
+end-of-line	C
+file-name-directory	H

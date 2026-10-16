@@ -202,7 +202,7 @@ See `ARCH.md` for the full incremental porting strategy.
 
 ## Phase N: Real C→Zig Ports (Incremental)
 
-**Status:** 🟢 In Progress (48 functions ported)
+**Status:** 🟢 In Progress (58 functions ported)
 
 ### Port Map
 
@@ -256,6 +256,16 @@ See `ARCH.md` for the full incremental porting strategy.
 | `frame-live-p` | `frame.c:277` (Fframe_live_p) | `src/zig/frame_live_p.zig` | ✅ PORTED | Property test + A/B mode | Corpus 49-frame-live-p.el | Round #3; Cat H₁ (`zig_XFRAME`/`FRAME_LIVE_P`/`Fframep`) |
 | `window-valid-p` | `window.c:333` (Fwindow_valid_p) | `src/zig/window_valid_p.zig` | ✅ PORTED | Property test + A/B mode | Corpus 50-window-valid-p.el | Round #3; Cat H₁ (`zig_WINDOW_VALID_P`) |
 | `file-name-nondirectory` | `fileio.c:578` (Ffile_name_nondirectory) | `src/zig/file_name_nondirectory.zig` | ✅ PORTED | A/B mode (`Fequal`, fresh string) | Corpus 51-file-name-nondirectory.el | Round #3; Cat H₁ — **first string-manipulation + file-handler port** (byte-walk + `make_specified_string`) |
+| `keywordp` | `data.c:723` (Fkeywordp) | `src/zig/keywordp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 52-keywordp.el | **Round #4**; Cat A (`SYMBOL_NAME`+`SREF`+`INTERNED_IN_INITIAL_OBARRAY_P`) |
+| `subrp` | `data.c:1299` (Fsubrp) | `src/zig/subrp.zig` | ✅ PORTED | Property test + A/B mode | Corpus 53-subrp.el | Round #4; Cat A |
+| `closurep` | `data.c:1351` (Fclosurep) | `src/zig/closurep.zig` | ✅ PORTED | Property test + A/B mode | Corpus 54-closurep.el | Round #4; Cat A |
+| `multibyte-string-p` | `data.c:926` (Fmultibyte_string_p) | `src/zig/multibyte_string_p.zig` | ✅ PORTED | Property test + A/B mode | Corpus 55-multibyte-string-p.el | Round #4; Cat A (`STRINGP`+`STRING_MULTIBYTE`) |
+| `member` | `fns.c:2153` (Fmember) | `src/zig/member.zig` | ✅ PORTED | Property test + A/B mode | Corpus 56-member.el | Round #4; Cat B (eq_comparable_value inlined; `Fmemq`/`member_equal_helper`) |
+| `assoc` | `fns.c:2391` (Fassoc) | `src/zig/assoc.zig` | ✅ PORTED | Property test + A/B mode | Corpus 57-assoc.el | Round #4; Cat B (3-arg; `Fassq`/`assoc_helper`) |
+| `hash-table-p` | `fns.c:6369` (Fhash_table_p) | `src/zig/hash-table-p.zig` | ✅ PORTED | Property test + A/B mode | Corpus 58-hash-table-p.el | Round #4; Cat B (`zig_HASH_TABLE_P`) |
+| `beginning-of-line` | `cmds.c:376` (Fbeginning_of_line) | `src/zig/beginning-of-line.zig` | ✅ PORTED | **Snapshot→replay A/B mode** | Corpus 59-beginning-of-line.el | Round #4; **Cat C MUTATING** (`Fline_beginning_position`+`SET_PT`) |
+| `end-of-line` | `cmds.c:495` (Fend_of_line) | `src/zig/end-of-line.zig` | ✅ PORTED | **Snapshot→replay A/B mode** | Corpus 60-end-of-line.el | Round #4; Cat C MUTATING (intangibility `while` loop; snapshot PT+PT_BYTE) |
+| `file-name-directory` | `fileio.c:459` (Ffile_name_directory) | `src/zig/file_name_directory.zig` | ✅ PORTED | A/B mode (`Fequal`, fresh string) | Corpus 61-file-name-directory.el | Round #4; Cat H₁ (handler dispatch + `file_name_directory`) |
 
 ### Architecture: Channel A In-Process A/B Verification
 
