@@ -83,12 +83,17 @@ jobs:
         cd test
         # Cap runtime so a flaky hanging test can't burn the 6h job limit.
         # Normal completion is ~3 min; 25 min is generous headroom.
-        timeout 1500 make check -j$(nproc); rc=$?
+        # '|| rc=$?' is required under 'bash -e': ordinary test failures make
+        # `make check` exit nonzero (expected - the gate evaluates them), and
+        # without this the step would die before the timeout check. Only a
+        # timeout (rc 124) fails this step.
+        rc=0
+        timeout 1500 make check -j$(nproc) || rc=$?
+        echo "make check exit rc=$rc"
         if [ "$rc" -eq 124 ]; then
           echo "::error::make check TIMED OUT (hanging test) - failing honestly, not masking"
           exit 1
         fi
-        # Any other nonzero (ordinary test failures) is fine - the gate evaluates results.
         true
 
     - name: Upload test logs
