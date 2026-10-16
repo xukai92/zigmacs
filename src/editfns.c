@@ -220,6 +220,12 @@ goto_char_orig (Lisp_Object position)
 /* Zig implementation (defined in src/zig/goto-char.zig) */
 extern Lisp_Object zig_goto_char (Lisp_Object position);
 
+/* Zig implementations of read-only point predicates (Category C) */
+extern Lisp_Object zig_bobp (void);
+extern Lisp_Object zig_eobp (void);
+extern Lisp_Object zig_bolp (void);
+extern Lisp_Object zig_eolp (void);
+
 /* Channel A dispatcher for goto-char.
    Normal mode: runs zig_goto_char(position) — the Zig port is the live implementation.
    A/B mode (ZIGMACS_AB=1): uses snapshot→replay to compare Zig vs C:
@@ -1080,43 +1086,221 @@ At the beginning of the buffer or accessible region, return 0.  */)
   return temp;
 }
 
-DEFUN ("bobp", Fbobp, Sbobp, 0, 0, 0,
-       doc: /* Return t if point is at the beginning of the buffer.
-If the buffer is narrowed, this means the beginning of the narrowed part.  */)
-  (void)
+/* Original C implementation of bobp (preserved for Channel A verification).
+   Return t if point is at the beginning of the buffer. */
+static Lisp_Object
+bobp_orig (void)
 {
   if (PT == BEGV)
     return Qt;
   return Qnil;
 }
 
-DEFUN ("eobp", Feobp, Seobp, 0, 0, 0,
-       doc: /* Return t if point is at the end of the buffer.
-If the buffer is narrowed, this means the end of the narrowed part.  */)
+/* Channel A dispatcher for bobp.
+   Read-only predicate — no snapshot/replay needed (pure point check). */
+DEFUN ("bobp", Fbobp, Sbobp, 0, 0, 0,
+       doc: /* Return t if point is at the beginning of the buffer.
+If the buffer is narrowed, this means the beginning of the narrowed part.  */)
   (void)
+{
+  /* Check A/B mode once at startup (cached via static). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  if (ab_mode)
+    {
+      /* A/B verification for read-only predicate */
+      Lisp_Object c_result = bobp_orig ();
+      Lisp_Object zig_result = zig_bobp ();
+
+      if (!EQ (zig_result, c_result))
+	{
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: bobp ***\n");
+	  fprintf (stderr, "point:      %td\n", (ptrdiff_t) PT);
+	  fprintf (stderr, "BEGV:       %td\n", (ptrdiff_t) BEGV);
+	  fprintf (stderr, "C result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+
+      return zig_result;
+    }
+  else
+    {
+      /* Normal mode: Zig is the live implementation */
+      return zig_bobp ();
+    }
+}
+
+/* Original C implementation of eobp (preserved for Channel A verification).
+   Return t if point is at the end of the buffer. */
+static Lisp_Object
+eobp_orig (void)
 {
   if (PT == ZV)
     return Qt;
   return Qnil;
 }
 
-DEFUN ("bolp", Fbolp, Sbolp, 0, 0, 0,
-       doc: /* Return t if point is at the beginning of a line.  */)
+/* Channel A dispatcher for eobp.
+   Read-only predicate — no snapshot/replay needed (pure point check). */
+DEFUN ("eobp", Feobp, Seobp, 0, 0, 0,
+       doc: /* Return t if point is at the end of the buffer.
+If the buffer is narrowed, this means the end of the narrowed part.  */)
   (void)
+{
+  /* Check A/B mode once at startup (cached via static). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  if (ab_mode)
+    {
+      /* A/B verification for read-only predicate */
+      Lisp_Object c_result = eobp_orig ();
+      Lisp_Object zig_result = zig_eobp ();
+
+      if (!EQ (zig_result, c_result))
+	{
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: eobp ***\n");
+	  fprintf (stderr, "point:      %td\n", (ptrdiff_t) PT);
+	  fprintf (stderr, "ZV:         %td\n", (ptrdiff_t) ZV);
+	  fprintf (stderr, "C result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+
+      return zig_result;
+    }
+  else
+    {
+      /* Normal mode: Zig is the live implementation */
+      return zig_eobp ();
+    }
+}
+
+/* Original C implementation of bolp (preserved for Channel A verification).
+   Return t if point is at the beginning of a line. */
+static Lisp_Object
+bolp_orig (void)
 {
   if (PT == BEGV || FETCH_BYTE (PT_BYTE - 1) == '\n')
     return Qt;
   return Qnil;
 }
 
+/* Channel A dispatcher for bolp.
+   Read-only predicate — no snapshot/replay needed (pure point check). */
+DEFUN ("bolp", Fbolp, Sbolp, 0, 0, 0,
+       doc: /* Return t if point is at the beginning of a line.  */)
+  (void)
+{
+  /* Check A/B mode once at startup (cached via static). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  if (ab_mode)
+    {
+      /* A/B verification for read-only predicate */
+      Lisp_Object c_result = bolp_orig ();
+      Lisp_Object zig_result = zig_bolp ();
+
+      if (!EQ (zig_result, c_result))
+	{
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: bolp ***\n");
+	  fprintf (stderr, "point:      %td\n", (ptrdiff_t) PT);
+	  fprintf (stderr, "PT_BYTE:    %td\n", (ptrdiff_t) PT_BYTE);
+	  fprintf (stderr, "BEGV:       %td\n", (ptrdiff_t) BEGV);
+	  if (PT > BEGV)
+	    fprintf (stderr, "byte@PT-1:  %d\n", FETCH_BYTE (PT_BYTE - 1));
+	  fprintf (stderr, "C result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+
+      return zig_result;
+    }
+  else
+    {
+      /* Normal mode: Zig is the live implementation */
+      return zig_bolp ();
+    }
+}
+
+/* Original C implementation of eolp (preserved for Channel A verification).
+   Return t if point is at the end of a line. */
+static Lisp_Object
+eolp_orig (void)
+{
+  if (PT == ZV || FETCH_BYTE (PT_BYTE) == '\n')
+    return Qt;
+  return Qnil;
+}
+
+/* Channel A dispatcher for eolp.
+   Read-only predicate — no snapshot/replay needed (pure point check). */
 DEFUN ("eolp", Feolp, Seolp, 0, 0, 0,
        doc: /* Return t if point is at the end of a line.
 `End of a line' includes point being at the end of the buffer.  */)
   (void)
 {
-  if (PT == ZV || FETCH_BYTE (PT_BYTE) == '\n')
-    return Qt;
-  return Qnil;
+  /* Check A/B mode once at startup (cached via static). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  if (ab_mode)
+    {
+      /* A/B verification for read-only predicate */
+      Lisp_Object c_result = eolp_orig ();
+      Lisp_Object zig_result = zig_eolp ();
+
+      if (!EQ (zig_result, c_result))
+	{
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: eolp ***\n");
+	  fprintf (stderr, "point:      %td\n", (ptrdiff_t) PT);
+	  fprintf (stderr, "PT_BYTE:    %td\n", (ptrdiff_t) PT_BYTE);
+	  fprintf (stderr, "ZV:         %td\n", (ptrdiff_t) ZV);
+	  if (PT < ZV)
+	    fprintf (stderr, "byte@PT:    %d\n", FETCH_BYTE (PT_BYTE));
+	  fprintf (stderr, "C result:   ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result: ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+
+      return zig_result;
+    }
+  else
+    {
+      /* Normal mode: Zig is the live implementation */
+      return zig_eolp ();
+    }
 }
 
 DEFUN ("char-after", Fchar_after, Schar_after, 0, 1, 0,
