@@ -81,8 +81,15 @@ jobs:
     - name: Run test suite
       run: |
         cd test
-        # Run tests - don't fail step, let gate script evaluate results
-        make check -j$(nproc) || true
+        # Cap runtime so a flaky hanging test can't burn the 6h job limit.
+        # Normal completion is ~3 min; 25 min is generous headroom.
+        timeout 1500 make check -j$(nproc); rc=$?
+        if [ "$rc" -eq 124 ]; then
+          echo "::error::make check TIMED OUT (hanging test) - failing honestly, not masking"
+          exit 1
+        fi
+        # Any other nonzero (ordinary test failures) is fine - the gate evaluates results.
+        true
 
     - name: Upload test logs
       if: always()
