@@ -12,6 +12,7 @@
 #include <config.h>
 #include "lisp.h"
 #include "bignum.h"
+#include "character.h"
 #include "zig/shim.h"
 
 /* === Fixnum operations (inline/macro in lisp.h) === */
@@ -139,4 +140,117 @@ bool
 zig_VECTORP (Lisp_Object obj)
 {
   return VECTORP (obj);
+}
+
+intptr_t
+zig_ASIZE (Lisp_Object obj)
+{
+  return ASIZE (obj);
+}
+
+/* === String operations === */
+
+intptr_t
+zig_SCHARS (Lisp_Object obj)
+{
+  return SCHARS (obj);
+}
+
+/* === Sequence type checks === */
+
+bool
+zig_CHAR_TABLE_P (Lisp_Object obj)
+{
+  return CHAR_TABLE_P (obj);
+}
+
+bool
+zig_BOOL_VECTOR_P (Lisp_Object obj)
+{
+  return BOOL_VECTOR_P (obj);
+}
+
+bool
+zig_CLOSUREP (Lisp_Object obj)
+{
+  return CLOSUREP (obj);
+}
+
+bool
+zig_RECORDP (Lisp_Object obj)
+{
+  return RECORDP (obj);
+}
+
+/* === Sequence size operations === */
+
+intptr_t
+zig_PVSIZE (Lisp_Object obj)
+{
+  return PVSIZE (obj);
+}
+
+intptr_t
+zig_MAX_CHAR (void)
+{
+  return MAX_CHAR;
+}
+
+intptr_t
+zig_bool_vector_size (Lisp_Object obj)
+{
+  return bool_vector_size (obj);
+}
+
+/* === List operations === */
+
+intptr_t
+zig_list_length (Lisp_Object list)
+{
+  return list_length (list);
+}
+
+/* === Equality === */
+
+bool
+zig_EQ (Lisp_Object obj1, Lisp_Object obj2)
+{
+  return EQ (obj1, obj2);
+}
+
+bool
+zig_BASE_EQ (Lisp_Object obj1, Lisp_Object obj2)
+{
+  return BASE_EQ (obj1, obj2);
+}
+
+/* === Helper functions for list traversal === */
+
+/* Helper for memq: search for ELT in LIST using eq comparison.
+   Returns the tail of LIST whose car is ELT, or Qnil if not found.
+   Signals error on circular or improper list. */
+Lisp_Object
+zig_memq_helper (Lisp_Object elt, Lisp_Object list)
+{
+  Lisp_Object tail = list;
+  FOR_EACH_TAIL (tail)
+    if (EQ (XCAR (tail), elt))
+      return tail;
+  CHECK_LIST_END (tail, list);
+  return Qnil;
+}
+
+/* Helper for assq: search for KEY in association list ALIST.
+   Returns the first element of ALIST whose car is KEY, or Qnil if not found.
+   Ignores non-cons elements in the alist.
+   Signals error on circular or improper list. */
+Lisp_Object
+zig_assq_helper (Lisp_Object key, Lisp_Object alist)
+{
+  Lisp_Object tail = alist;
+  FOR_EACH_TAIL (tail)
+    if (CONSP (XCAR (tail)) && EQ (XCAR (XCAR (tail)), key))
+      return XCAR (tail);
+  CHECK_LIST_END (tail, alist);
+  return Qnil;
 }
