@@ -21,6 +21,7 @@
 #include "coding.h"
 #include "buffer.h"
 #include "window.h"
+#include "keymap.h"
 #include "zig/shim.h"
 
 /* === Fixnum operations (inline/macro in lisp.h) === */
@@ -459,4 +460,88 @@ Lisp_Object
 zig_Qinteger_or_marker_p (void)
 {
   return Qinteger_or_marker_p;
+}
+
+/* ============================================================
+   Fan-out round #2 wrappers (added solo by orchestrator).
+   ============================================================ */
+
+/* === Cat A: function predicate (eval.c Ffunctionp) === */
+
+bool
+zig_FUNCTIONP (Lisp_Object obj)
+{
+  return FUNCTIONP (obj);
+}
+
+/* === Cat B: list / sequence primitives (data.c, fns.c) === */
+
+Lisp_Object
+zig_CAR_SAFE (Lisp_Object obj)
+{
+  return CAR_SAFE (obj);
+}
+
+Lisp_Object
+zig_CDR_SAFE (Lisp_Object obj)
+{
+  return CDR_SAFE (obj);
+}
+
+Lisp_Object
+zig_Fcar (Lisp_Object list)
+{
+  return Fcar (list);
+}
+
+Lisp_Object
+zig_Fnthcdr (Lisp_Object n, Lisp_Object list)
+{
+  return Fnthcdr (n, list);
+}
+
+/* Helper for safe-length: counts list length via FOR_EACH_TAIL_SAFE.
+   Never errors; for a circular list returns at least the number of
+   distinct elements.  Caller (Zig) wraps result in make_fixnum. */
+intptr_t
+zig_safe_length_count (Lisp_Object list)
+{
+  intptr_t len = 0;
+  FOR_EACH_TAIL_SAFE (list)
+    len++;
+  return len;
+}
+
+/* === Cat C: byte fetch at buffer position (read-only point preds) === */
+
+int
+zig_FETCH_BYTE (ptrdiff_t n)
+{
+  return FETCH_BYTE (n);
+}
+
+/* === Cat H1: liveness / keymap predicates === */
+
+struct buffer *
+zig_XBUFFER (Lisp_Object obj)
+{
+  return XBUFFER (obj);
+}
+
+bool
+zig_BUFFER_LIVE_P (struct buffer *b)
+{
+  return BUFFER_LIVE_P (b);
+}
+
+bool
+zig_KEYMAPP (Lisp_Object obj)
+{
+  return KEYMAPP (obj);
+}
+
+bool
+zig_WINDOW_LIVE_P (Lisp_Object obj)
+{
+  return WINDOW_LIVE_P (obj);
 }

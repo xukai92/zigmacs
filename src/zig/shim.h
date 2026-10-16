@@ -120,4 +120,25 @@ extern struct buffer *zig_current_buffer (void);
 /* Symbol accessors (for type error reporting) */
 extern Lisp_Object zig_Qinteger_or_marker_p (void);
 
+/* --- Fan-out round #2 wrappers --- */
+
+/* Cat A: function predicate */
+extern bool zig_FUNCTIONP (Lisp_Object obj);
+
+/* Cat B: list / sequence primitives */
+extern Lisp_Object zig_CAR_SAFE (Lisp_Object obj);
+extern Lisp_Object zig_CDR_SAFE (Lisp_Object obj);
+extern Lisp_Object zig_Fcar (Lisp_Object list);
+extern Lisp_Object zig_Fnthcdr (Lisp_Object n, Lisp_Object list);
+extern intptr_t zig_safe_length_count (Lisp_Object list);
+
+/* Cat C: byte fetch at buffer position (read-only point preds) */
+extern int zig_FETCH_BYTE (ptrdiff_t n);
+
+/* Cat H1: liveness / keymap predicates */
+extern struct buffer *zig_XBUFFER (Lisp_Object obj);
+extern bool zig_BUFFER_LIVE_P (struct buffer *b);
+extern bool zig_KEYMAPP (Lisp_Object obj);
+extern bool zig_WINDOW_LIVE_P (Lisp_Object obj);
+
 #endif /* ZIG_SHIM_H */
