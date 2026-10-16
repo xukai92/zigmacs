@@ -61,6 +61,11 @@ extern Lisp_Object zig_nth (Lisp_Object n, Lisp_Object list);
 /* Zig implementation of safe-length (Category B port, fanout round #2) */
 extern Lisp_Object zig_safe_length (Lisp_Object list);
 
+/* Zig implementations (Category B ports, fanout round #3) */
+extern Lisp_Object zig_elt (Lisp_Object sequence, Lisp_Object n);
+extern Lisp_Object zig_proper_list_p (Lisp_Object object);
+extern Lisp_Object zig_rassq (Lisp_Object key, Lisp_Object alist);
+
 enum equal_kind { EQUAL_NO_QUIT, EQUAL_PLAIN, EQUAL_INCLUDING_PROPERTIES };
 static bool internal_equal (Lisp_Object, Lisp_Object,
 			    enum equal_kind, int, Lisp_Object);
@@ -341,11 +346,10 @@ counted.  */)
     return XFIXNUM (Flength (sequence)) == len? Qt: Qnil;
 }
 
-DEFUN ("proper-list-p", Fproper_list_p, Sproper_list_p, 1, 1, 0,
-       doc: /* Return OBJECT's length if it is a proper list, nil otherwise.
-A proper list is neither circular nor dotted (i.e., its last cdr is nil).  */
-       attributes: const)
-  (Lisp_Object object)
+/* Original C implementation of proper-list-p, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+proper_list_p_orig (Lisp_Object object)
 {
   intptr_t len = 0;
   Lisp_Object last_tail = object;
@@ -359,6 +363,48 @@ A proper list is neither circular nor dotted (i.e., its last cdr is nil).  */
   if (!NILP (last_tail))
     return Qnil;
   return make_fixnum (len);
+}
+
+/* Channel A dispatcher for proper-list-p.
+   Normal mode: returns zig_proper_list_p(object) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
+DEFUN ("proper-list-p", Fproper_list_p, Sproper_list_p, 1, 1, 0,
+       doc: /* Return OBJECT's length if it is a proper list, nil otherwise.
+A proper list is neither circular nor dotted (i.e., its last cdr is nil).  */
+       attributes: const)
+  (Lisp_Object object)
+{
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_proper_list_p (object);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = proper_list_p_orig (object);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: proper-list-p ***\n");
+	  fprintf (stderr, "Input object: ");
+	  Fprin1 (object, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result:   ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:     ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 DEFUN ("string-bytes", Fstring_bytes, Sstring_bytes, 1, 1, 0,
@@ -1995,9 +2041,10 @@ N counts from zero.  If LIST is not that long, nil is returned.  */)
   return zig_result;
 }
 
-DEFUN ("elt", Felt, Selt, 2, 2, 0,
-       doc: /* Return element of SEQUENCE at index N.  */)
-  (Lisp_Object sequence, Lisp_Object n)
+/* Original C implementation of elt, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+elt_orig (Lisp_Object sequence, Lisp_Object n)
 {
   if (CONSP (sequence) || NILP (sequence))
     return Fcar (Fnthcdr (n, sequence));
@@ -2005,6 +2052,48 @@ DEFUN ("elt", Felt, Selt, 2, 2, 0,
   /* Faref signals a "not array" error, so check here.  */
   CHECK_ARRAY (sequence, Qsequencep);
   return Faref (sequence, n);
+}
+
+/* Channel A dispatcher for elt.
+   Normal mode: returns zig_elt(sequence, n) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
+DEFUN ("elt", Felt, Selt, 2, 2, 0,
+       doc: /* Return element of SEQUENCE at index N.  */)
+  (Lisp_Object sequence, Lisp_Object n)
+{
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_elt (sequence, n);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = elt_orig (sequence, n);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: elt ***\n");
+	  fprintf (stderr, "Input sequence: ");
+	  Fprin1 (sequence, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nInput n:        ");
+	  Fprin1 (n, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result:     ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:       ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 enum { WORDS_PER_DOUBLE = (sizeof (double) / sizeof (EMACS_UINT)
@@ -2268,10 +2357,10 @@ assoc_no_quit (Lisp_Object key, Lisp_Object alist)
   return Qnil;
 }
 
-DEFUN ("rassq", Frassq, Srassq, 2, 2, 0,
-       doc: /* Return non-nil if KEY is `eq' to the cdr of an element of ALIST.
-The value is actually the first element of ALIST whose cdr is KEY.  */)
-  (Lisp_Object key, Lisp_Object alist)
+/* Original C implementation of rassq, retained for Channel A verification.
+   This is the upstream GNU Emacs 30.1 implementation, preserved byte-for-byte. */
+static Lisp_Object
+rassq_orig (Lisp_Object key, Lisp_Object alist)
 {
   Lisp_Object tail = alist;
   FOR_EACH_TAIL (tail)
@@ -2279,6 +2368,49 @@ The value is actually the first element of ALIST whose cdr is KEY.  */)
       return XCAR (tail);
   CHECK_LIST_END (tail, alist);
   return Qnil;
+}
+
+/* Channel A dispatcher for rassq.
+   Normal mode: returns zig_rassq(key, alist) — the Zig port is the live implementation.
+   A/B mode (ZIGMACS_AB=1): computes BOTH implementations, asserts equality, aborts on mismatch. */
+DEFUN ("rassq", Frassq, Srassq, 2, 2, 0,
+       doc: /* Return non-nil if KEY is `eq' to the cdr of an element of ALIST.
+The value is actually the first element of ALIST whose cdr is KEY.  */)
+  (Lisp_Object key, Lisp_Object alist)
+{
+  /* Check A/B mode once at startup (cached via static).
+     This keeps the hot path fast (single static check, not egetenv every call). */
+  static int ab_mode = -1;
+  if (ab_mode == -1)
+    {
+      const char *env = egetenv ("ZIGMACS_AB");
+      ab_mode = (env && env[0] == '1') ? 1 : 0;
+    }
+
+  Lisp_Object zig_result = zig_rassq (key, alist);
+
+  if (ab_mode)
+    {
+      /* A/B verification: compare Zig vs original C */
+      Lisp_Object c_result = rassq_orig (key, alist);
+      if (!EQ (zig_result, c_result))
+	{
+	  /* Mismatch detected — emit repro and abort */
+	  fprintf (stderr, "\n*** ZIGMACS CHANNEL A MISMATCH: rassq ***\n");
+	  fprintf (stderr, "Input key:   ");
+	  Fprin1 (key, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nInput alist: ");
+	  Fprin1 (alist, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nZig result:  ");
+	  Fprin1 (zig_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\nC result:    ");
+	  Fprin1 (c_result, Qexternal_debugging_output, Qnil);
+	  fprintf (stderr, "\n");
+	  emacs_abort ();
+	}
+    }
+
+  return zig_result;
 }
 
 DEFUN ("rassoc", Frassoc, Srassoc, 2, 2, 0,
